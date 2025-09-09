@@ -1,0 +1,1 @@
+{'address':R'C:/Users/Datudo/Desktop/py/healthy_surf/beta-v-0.4/screen', 'max_amount': 5, 'qty': 1, 'p_gap': 900000}
