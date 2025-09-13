@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import filedialog
+from tkinter import ttk
 
 def font_width_deal(address_f, label):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址，其中label需要为要处理的tkinter.label实例
         try:
@@ -21,7 +22,7 @@ def font_width_deal(address_f, label):  #用于计算地址长度是否过长，
             print('sth wrong')        
 
 class ToolTip:  #提示框
-    def __init__(self, widget, font="TkDefaultFont", textvariable=None, text='',condition=True):
+    def __init__(self, widget, font="TkDefaultFont", textvariable=None, text='',condition=True, wraplength=500):
         self.if_tv = False
         self.widget = widget
         self.font = font
@@ -31,6 +32,7 @@ class ToolTip:  #提示框
         self.widget.bind("<Enter>", self.enter_tip)
         self.widget.bind("<Leave>", self.hide_tip)
         self.textvariable = textvariable
+        self.wraplength = wraplength
 
         if text and textvariable:  #若两种文本同时输入，报错且以text输入值为准
             textvariable = None
@@ -51,9 +53,9 @@ class ToolTip:  #提示框
             tw.wm_overrideredirect(True)  # 去掉窗口边框
             tw.wm_geometry(f"+{x}+{y}")
             if self.if_tv:
-                label = tk.Label(tw, textvariable=self.textvariable, justify='left', background="#ffffff", relief='solid', borderwidth=1, font=self.font)
+                label = tk.Label(tw, textvariable=self.textvariable, justify='left', background="#ffffff", relief='solid', borderwidth=1, font=self.font, wraplength=self.wraplength)
             else:
-                label = tk.Label(tw, text=self.text, justify='left', background="#ffffff", relief='solid', borderwidth=1, font=self.font)
+                label = tk.Label(tw, text=self.text, justify='left', background="#ffffff", relief='solid', borderwidth=1, font=self.font, wraplength=self.wraplength)
             label.pack(ipadx=5, ipady=2)
 
     def enter_tip(self, event):
@@ -76,6 +78,7 @@ class AddressInputBox(tk.Frame):  #地址输入框
         self.default_address = default_address
         self.width_a = width_a
         self.bg = bg
+        self.if_omit = if_omit
 
         super().__init__(master, **kwargs)
 
@@ -121,14 +124,51 @@ class AddressInputBox(tk.Frame):  #地址输入框
 
     def __ads_set(self, ads_get):  #用于为各个地址属性赋值最终self.address与self.address_v即为地址，ads_get=None时用于初始化
         if not ads_get:
-            self.address_s.set(font_width_deal(self.address, self.label_a))
+            if self.if_omit:
+                self.address_s.set(font_width_deal(self.address, self.label_a))
+            else:
+                self.address_s.set(self.address)
         else:
-            address_t = font_width_deal(ads_get, self.label_a)
-            self.address_v.set(ads_get)
-            self.address = ads_get
+            if self.if_omit:
+                address_t = font_width_deal(ads_get, self.label_a)
+            else:
+                self.address_t = self.address
+                self.address_v.set(ads_get)
+                self.address = ads_get
             self.address_s.set(address_t)
 
+class TextComboBox(tk.Frame):
+    def __init__(self, master=None, text='', values=[], default_index=0, font_l="TkDefaultFont", font_c="TkDefaultFont", **kwargs):
+        self.master = master
+        self.text = text
+        self.values = values
+        self.default_index = default_index
+        self.font_l = font_l
+        self.font_c = font_c
+        super().__init__(master, **kwargs)
+
+        self.label = tk.Label(self, text=self.text, font=self.font_l)
+        self.label.pack(side='left')
+
+        self.combobox = ttk.Combobox(self, values=self.values, font=self.font_c)
+        self.combobox.pack(side='right')
+        if self.values:    
+            self.combobox.current(self.default_index)
+
+    def current(self, newindex=0):
+        if newindex:
+            self.combobox.current(newindex=newindex)
+        return self.combobox.current()
+    
+    def bind(self, *args, **kwargs):
+        self.combobox.bind(*args, **kwargs)
+
+
 if __name__ == '__main__':
+    def a(event):
+        global textbox
+        print(textbox.current())
+
     root = tk.Tk()
     root.geometry("500x500")
 
@@ -150,6 +190,11 @@ if __name__ == '__main__':
     test.pack()
 
     testtip = ToolTip(test, textvariable=test.address_var_get())
+
+    textbox = TextComboBox(root, text='test', values=['a','b','c'], font_l=('微软雅黑', 13), font_c=('微软雅黑', 13))
+    textbox.pack()
+
+    textbox.bind("<Button-1>", a)
 
     font_width_deal('123', lab2)
 
