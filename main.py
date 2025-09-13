@@ -7,6 +7,7 @@ from tkinter import filedialog
 from tkinter import font as tkfont
 import os                           #导入必要库
 
+version = 'beta-v0.0.6'
 time_gap = 0  #该变量用于记录当天的使用时间
 org_time = 0
 org_time_date = 0
@@ -362,7 +363,7 @@ def sp_window():
     root5.protocol('WM_DELETE_WINDOW', if_save)
     
 root = tk.Tk()
-root.title('健康上网')
+root.title(f'健康上网{version}')
 root.geometry('662x400')
 root.configure(bg='white')
 root.resizable(False, False)
