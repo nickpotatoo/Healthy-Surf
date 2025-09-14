@@ -5,9 +5,10 @@ from datetime import datetime
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import font as tkfont
-import os                           #导入必要库
+import os
+import json        #导入必要库
 
-version = 'beta-v0.0.6'
+version = 'beta-v0.0.7'
 time_gap = 0  #该变量用于记录当天的使用时间
 org_time = 0
 org_time_date = 0
@@ -19,20 +20,24 @@ passwordkey = '1'
 if_first_load = 0
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
+history = {}    
 
-def load_history():  #读取或创建本地历史文件，将结果保存为字典history
+def load_history_json():   #读取或创建本地历史文件，将结果保存为字典history
     global history, time_date
-    if os.path.exists('history.txt'):
+    if os.path.exists('history.json'):
         try:
-            with open('history.txt', 'r') as file:
-                history = eval(file.read())
+            with open('history.json', 'r') as file:
+                history_c = json.load(file)
+                for k, v in history_c.items():
+                    history[int(k)] = v
         except Exception as e:
-            print("读取 history.txt 出错:", e)
-            history = {}
+            print("读取 history.json 出错:", e)
             history[time_date] = '0#0#0#0'
     else:
-        with open('history.txt', 'w') as file:
-            file.write("{%d: '0#0#0#0'}"%time_date)
+        with open('history.json', 'w', newline='') as file:
+            hty_n = {}
+            hty_n[time_date] = "0#0#0#0"
+            json.dump(hty_n, file, indent=4)
         history = {}
         history[time_date] = '0#0#0#0'
 
@@ -49,8 +54,8 @@ def update_time(if_circulate):  #计算当日使用时长，并写入本地，5�
     gap_hour, gap_min, gap_second = time_calculate(time_gap)
     lab1_var.set('您今日已累计使用电脑%d小时，%d分钟，%d秒' %(gap_hour, gap_min, gap_second))
     history[time_date] = '%d#%d#%d#%d'%(gap_hour, gap_min, gap_second, time_gap)
-    history_write()
-    #print(history)
+    history_write_json()
+    print(history)
     if if_circulate == 1:
         root.after(5000, lambda : update_time(1))
     else:
@@ -84,9 +89,9 @@ def cfm_time(if_circulate): #确认现在是否跨天，来决定是否初始化
     else:
         pass
 
-def history_write():  #将history写入本地
-    with open('history.txt','w') as file:
-        file.write(str(history))
+def history_write_json():  #将history以json格式写入本地
+    with open('history.json', 'w', newline='') as file:
+        json.dump(history, file, indent=4)
 
 def history_read():   #将time_gap设定为当天的历史值
     global time_gap, time_date
@@ -134,8 +139,8 @@ def history_check():   #用于图形界面查询历史
             del history[key_f]
         else:
             history[key_f] = '0#0#0#0'
-        history_write()
-        load_history()
+        history_write_json()
+        load_history_json()
         cfm_time(0)
         htylist_refresh(0)
         update_time(0)
@@ -182,19 +187,11 @@ def password(event_f):  # 用于密码确认
             elif shur1.get() == 'admin':
                 print('admin')
             else:
-                password_wrong()
+                kww.show()
         except Exception as e:
             print("错误：", e)
 
-    def password_wrong():  # 用于生成密码错误界面
-        root4 = tk.Toplevel(root3)
-        root4.title('错误')
-        root4.geometry('400x100')
-        root4.configure(bg='white')
-        root4.resizable(False, False)
-
-        lab2 = tk.Label(root4, text='密码错误', font=('微软雅黑', 14), fg="#000000", bg='white')
-        lab2.pack(pady=30)
+    kww = moretk.KeyWrong()  # 用于生成密码错误界面，默认隐藏
     
     root3 = tk.Toplevel(root)
     root3.title('输入密码')
@@ -384,7 +381,7 @@ cav1.create_window(100,30,window=bto4)
 
 root.protocol('WM_DELETE_WINDOW', lambda : password(0))
 
-load_history()
+load_history_json()
 history_read_date()
 cfm_time(1)
 update_time(1)

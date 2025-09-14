@@ -69,7 +69,9 @@ class ToolTip:  #提示框
             self.tip_window = None
 
 class AddressInputBox(tk.Frame):  #地址输入框
-    def __init__(self, master=None, text='Saving Address', font_r="TkDefaultFont", font_a="TkDefaultFont", default_address='', button_size=1, width_a=50, bg='white', if_omit=True, **kwargs):
+    def __init__(self, master=None, text='Saving Address', font_r="TkDefaultFont", font_a="TkDefaultFont", default_address='', button_size=1, width_a=50, bg='white', if_omit=True, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
         self.text = text
         self.master = master
         self.font_r = font_r
@@ -79,8 +81,6 @@ class AddressInputBox(tk.Frame):  #地址输入框
         self.width_a = width_a
         self.bg = bg
         self.if_omit = if_omit
-
-        super().__init__(master, **kwargs)
 
         self.address = self.default_address
         self.address_v = tk.StringVar()
@@ -137,32 +137,54 @@ class AddressInputBox(tk.Frame):  #地址输入框
                 self.address = ads_get
             self.address_s.set(address_t)
 
-class TextComboBox(tk.Frame):
-    def __init__(self, master=None, text='', values=[], default_index=0, font_l="TkDefaultFont", font_c="TkDefaultFont", **kwargs):
+class TextComboBox(tk.Frame):   #带有文字的combobox
+    def __init__(self, master=None, text='', values=[], default_index=0, font_l="TkDefaultFont", font_c="TkDefaultFont", *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
         self.master = master
         self.text = text
         self.values = values
         self.default_index = default_index
         self.font_l = font_l
         self.font_c = font_c
-        super().__init__(master, **kwargs)
 
         self.label = tk.Label(self, text=self.text, font=self.font_l)
         self.label.pack(side='left')
 
         self.combobox = ttk.Combobox(self, values=self.values, font=self.font_c)
         self.combobox.pack(side='right')
-        if self.values:    
+        if self.values:    #如果有给值的话，默认为default_index
             self.combobox.current(self.default_index)
 
-    def current(self, newindex=0):
+    def current(self, newindex=0):   #写一个current方法，使得可以从combobox丝滑过渡到我写的这个类
         if newindex:
             self.combobox.current(newindex=newindex)
         return self.combobox.current()
     
-    def bind(self, *args, **kwargs):
+    def bind(self, *args, **kwargs):  #同上
         self.combobox.bind(*args, **kwargs)
 
+class KeyWrong(tk.Toplevel):
+    """密码错误界面，默认隐藏，.show()方法显示"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.title('错误')
+        self.geometry('400x100')
+        self.configure(bg='white')
+        self.resizable(False, False)
+
+        self.label = tk.Label(self, text='密码错误',font=('微软雅黑', 14),fg="#000000", bg='white')
+        self.label.pack(pady=30)
+
+        self.withdraw()
+
+    def show(self):
+        if self.state() != 'withdrawn':
+            self.withdraw()
+            self.deiconify()
+        else:
+            self.deiconify()
 
 if __name__ == '__main__':
     def a(event):
@@ -195,6 +217,15 @@ if __name__ == '__main__':
     textbox.pack()
 
     textbox.bind("<Button-1>", a)
+
+    wrong = KeyWrong(root)
+    wrong.show()
+
+    bto = tk.Button(root, text='Yes', command=wrong.show)
+    bto2 = tk.Button(root, text='No', command=wrong.withdraw)
+
+    bto.pack()
+    bto2.pack()
 
     font_width_deal('123', lab2)
 

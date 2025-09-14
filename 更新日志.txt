@@ -1,11 +1,34 @@
-更新了一个库的名称
+beta-v-0.3:
+	重新梳理代码，增加代码可读性
+	加入密码功能
+beta-v-0.4:
+	修复了删除历史时时间显示不立刻刷新的bug
+	更改主程序名称
+	增加截屏功能（真的很花时间QAQ）
+beta-v-o.5:
+	增添tooltip工具
+	解决了取消选择截屏路径后路径会变白的bug
+	解决了没有修改截屏配置的情况下依然询问是否保存的问题
+	解决了多个密码窗口会被一次关闭的问题
+beta-v-0.6:
+	更新了一个库的名称Tooltip --> moretk
+	moretk中增加了addressinputbox类
+	增加了version
+	Tooltip现在可以支持tk.stringvar类型文本了（解决了更新目录后Tooltip不会更新的问题）
+	实现了Tooltip自动换行（通过wraplength）
+	实现了TextComboBox
+beta-v-0.7:
+	优化moretk中部分类
+	moretk中增加KeyWrong类（解决了多次输入密码错误会打开多个密码错误界面的问题）
+	history优化（以json格式保存读写）
 
 待解决问题:
         运行时可以通过修改config使下一次启动时读取修改后的config，并且本地文件乱改会使程序无法正常运行（config），考虑日后换成json
         可以在任务管理器中被强制关闭
-        history优化
 未来可能添加功能：
 		定时关机
 		流量统计
 		截屏软件内阅读
-		history与config文件保存位置修改
+		更新日志优化（软件内阅读）
+		考虑使用TextCombobox以及AddressInputBox
+		自定义history, config保存路径（？）
