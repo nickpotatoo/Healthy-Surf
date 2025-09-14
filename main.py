@@ -55,7 +55,7 @@ def update_time(if_circulate):  #计算当日使用时长，并写入本地，5�
     lab1_var.set('您今日已累计使用电脑%d小时，%d分钟，%d秒' %(gap_hour, gap_min, gap_second))
     history[time_date] = '%d#%d#%d#%d'%(gap_hour, gap_min, gap_second, time_gap)
     history_write_json()
-    print(history)
+    #print(history)
     if if_circulate == 1:
         root.after(5000, lambda : update_time(1))
     else:
@@ -206,18 +206,19 @@ def password(event_f):  # 用于密码确认
     bto3 = tk.Button(root3, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white',text='确认', command=password_check)
     bto3.pack(side='bottom', pady=10)
 
-def config_read(): #用于读取配置文件
+def config_read_json(): #用于读取配置文件
     global config, address, max_amount, qty, p_gap
-    if os.path.exists('config.txt'): #读取本地config
+    if os.path.exists('config.json'): #读取本地config
         try:
-            with open('config.txt', 'r') as file:
-                config = eval(file.read())
+            with open('config.json', 'r') as file:
+                config = json.load(file)
         except Exception as e:
-            print("读取 'config.txt' 出错:", e)
-    else: #本地配置文件初始化
-        with open('config.txt', 'w') as file:
-            file.write(R"{'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}")
+            print("读取 'config.json' 出错:", e)
             config = {'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}
+    else: #本地配置文件初始化
+        with open('config.json', 'w', newline='') as file:
+            config = {'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}
+            json.dump(config, file, indent=4)
     address = config['address']
     max_amount = config['max_amount']
     qty = config['qty']
@@ -226,7 +227,7 @@ def config_read(): #用于读取配置文件
 def get_screen():  #主程序中使用截屏
     global if_first_load
     if not if_first_load:    #仅启动时读取config
-        config_read()
+        config_read_json()
         if_first_load = 1
     else:
         pass
@@ -234,21 +235,19 @@ def get_screen():  #主程序中使用截屏
     root.after(p_gap, get_screen)
 
 def sp_window():
-    def sp_config_write():  #用于将config中数值写入本地
-        if os.path.exists('config.txt'):
+    def sp_config_write_json():  #用于将config中数值以json格式写入本地
+        if os.path.exists('config.json'):
             try:
-                with open('config.txt', 'w') as file:
-                    r1 = config['p_gap']
-                    r2 = config['max_amount']
-                    r3 = config['qty']
-                    r4 = config['address']
-                    file.write(R"{'address':R'%s', 'max_amount': %d, 'qty': %d, 'p_gap': %d}"%(r4, r2, r3, r1))
+                with open('config.json', 'w', newline='') as file:
+                    json.dump(config, file, indent=4)
+
             except Exception as e:
-                print("写入 'config.txt' 出错:", e)
+                print("写入 'config.json' 出错:", e)
         else:
-            with open('config.txt', 'w') as file:
-                file.write(R"{'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}")  #如果文件不存在的话就创建一个默认文件再写入一次
-                sp_config_write()
+            with open('config.json', 'w', newline='') as file:
+                config_n = {'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}
+                json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
+                sp_config_write_json()
 
     def sp_config_save():  #用于关闭时将修改后的数值写入config
         config['address'] = address_cache
@@ -267,7 +266,7 @@ def sp_window():
             lab_is = tk.Label(root6, text='是否保存', font=('微软雅黑', 20), fg="#000000", bg='white')
             lab_is.pack(side='top', pady=20)
 
-            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (sp_config_save(), sp_config_write(), config_read(), root6.destroy(), root5.destroy()))
+            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (sp_config_save(), sp_config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
             bto_is_n = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='取消',command=lambda : (root6.destroy(), root5.destroy()))
             bto_is_y.pack(side='left', padx=60)
             bto_is_n.pack(side='right', padx=60)
