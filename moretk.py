@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import filedialog
 from tkinter import ttk
+from typing import Literal
 
 def font_width_deal(address_f, label):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址，其中label需要为要处理的tkinter.label实例
         try:
@@ -186,6 +187,120 @@ class KeyWrong(tk.Toplevel):
         else:
             self.deiconify()
 
+class TimeSpin(tk.Frame):
+    def __init__(self, master, values, amount=1, width=80, text='', font_l="TkDefaultFont", font_b="TkDefaultFont" ,*args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
+        self.values = values
+        self.width = width
+        self.item_height = 30  # 每一项的高度
+        self.height = amount * self.item_height
+        self.offset = 0        # 偏移量（用于滚动）
+        self.offset_org = 0
+        self.total_height = self.item_height * len(self.values)
+        self.mid = self.height // 2
+        self.text = text
+        self.font_l = font_l
+        self.font_b = font_b
+        self.mouse_y_org = 0
+
+        if amount > len(self.values):
+            raise ValueError("The amount is too large.")
+
+        self.canvas = tk.Canvas(self, width=self.width, height=self.height, bg="white")
+        self.canvas.pack(side="left")
+
+        self.canvas.bind("<MouseWheel>", self.on_mousewheel)# 绑定滚轮
+        self.canvas.bind("<B1-Motion>", self.on_mousedrag)# 绑定鼠标拖拽
+        self.canvas.bind("<Button-1>", self.on_mouse1click)# 绑定鼠标点击
+        self.draw()# 绘制内容
+
+        self.canvas.create_line(0, self.mid, width, self.height//2, fill="red", dash=(2, 2))# 中心线（选中区域）
+
+        self.label = tk.Label(self, text=self.text, font=self.font_l)
+        self.label.pack(side='right')
+
+    def draw(self):
+        """绘制滚轮上的值"""
+        self.canvas.delete("text")
+        if_red = False  #用于防止两个数字被同时标红
+        for i, v in enumerate(self.values):
+            y = i * self.item_height + self.offset
+            color = "black"
+            if abs(y - self.mid) <= self.item_height//2 and not if_red:
+                color = "red"  # 选中的项标红
+                self.idx = i
+                if_red = True
+            self.canvas.create_text(self.width//2, y, text=v, tags="text", fill=color, font=self.font_b)
+            if i == len(self.values) - 1:
+                if -self.item_height <= y < self.height:   #多画一点，防止穿帮
+                    n = len(self.values)
+                    for t in range(0,n):
+                        color = "black"
+                        y += self.item_height
+                        v = self.values[t]
+                        if abs(y - self.mid) <= self.item_height//2 and not if_red:
+                            color = "red"
+                            self.idx = t
+                            if_red = True
+                        self.canvas.create_text(self.width//2, y, text=v, tags="text", fill=color, font=self.font_b)
+            if i == 0:
+                if -self.item_height < y <= self.mid + self.item_height:
+                    n = len(self.values)
+                    for t in range(0,n):    #多画一点，防止穿帮
+                        color = "black"
+                        y -= self.item_height
+                        v = self.values[len(self.values)-1-t]
+                        if abs(y - self.mid) <= self.item_height//2 and not if_red:
+                            color = "red"
+                            self.idx = len(self.values)-1-t
+                            if_red = True
+                        self.canvas.create_text(self.width//2, y, text=v, tags="text", fill=color, font=self.font_b)
+                    
+
+    def on_mousewheel(self, event):
+        """滚动"""
+        self.offset += (event.delta // 120) * self.item_height  # 鼠标滚轮调节
+
+        if self.offset >= self.total_height:  # 让它循环滚动
+            self.offset -= self.total_height
+        elif self.offset <= -self.total_height:
+            self.offset += self.total_height
+
+        self.draw()
+
+    def on_mousedrag(self, event):
+        def move_value_deal(move_value):  #递归函数，防止move_value过大
+            if move_value >= self.total_height:
+                move_value -= self.total_height
+                return move_value_deal(move_value)
+            elif move_value <= -self.total_height:
+                move_value += self.total_height
+                return move_value_deal(move_value)
+            else:
+                return move_value
+
+        move_value = ((event.y - self.mouse_y_org) // 30)*30
+        move_value = move_value_deal(move_value)
+        
+        self.offset = self.offset_org + move_value
+
+        if self.offset >= self.total_height:
+            self.offset -= self.total_height
+        elif self.offset <= -self.total_height:  #又对self.offset处理，使其不过大并循环滚动
+            self.offset += self.total_height
+
+        self.draw()
+
+    def on_mouse1click(self, event):
+        self.mouse_y_org = event.y
+        self.offset_org = self.offset
+        return self.mouse_y_org
+
+    def get_selected(self):
+        """返回当前选中的值"""
+        return self.values[self.idx]
+
 if __name__ == '__main__':
     def a(event):
         global textbox
@@ -220,13 +335,17 @@ if __name__ == '__main__':
 
     wrong = KeyWrong(root)
     wrong.show()
+    wrong.withdraw()
 
     bto = tk.Button(root, text='Yes', command=wrong.show)
     bto2 = tk.Button(root, text='No', command=wrong.withdraw)
-
     bto.pack()
     bto2.pack()
 
     font_width_deal('123', lab2)
+
+    abcdefg = ['0', "1", "2", "3"]
+    timespin = TimeSpin(root, values=abcdefg, amount=4)
+    timespin.pack()
 
     root.mainloop()
