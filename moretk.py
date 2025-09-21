@@ -23,7 +23,7 @@ def font_width_deal(address_f, label):  #用于计算地址长度是否过长，
             print('sth wrong')        
 
 class ToolTip:  #提示框
-    def __init__(self, widget, font="TkDefaultFont", textvariable=None, text='',condition=True, wraplength=500):
+    def __init__(self, widget, font="TkDefaultFont", textvariable:tk.StringVar=None, text='',condition=True, wraplength=500):
         self.if_tv = False
         self.widget = widget
         self.font = font
@@ -186,13 +186,14 @@ class KeyWrong(tk.Toplevel):
             self.deiconify()
         else:
             self.deiconify()
+        self.lift()
 
 class TimeSpin(tk.Frame):
-    def __init__(self, master, values, amount=1, width=80, text='', font_l="TkDefaultFont", font_b="TkDefaultFont" ,*args, **kwargs):
-        super().__init__(master, *args, **kwargs)
+    def __init__(self, master, values, amount=1, width=80, text='', font_l="TkDefaultFont", font_b="TkDefaultFont", bg='white', text_side:Literal['right', 'left', 'top', 'bottom']='right', *args, **kwargs):
+        super().__init__(master, bg=bg, *args, **kwargs)
 
         self.values = values
-        self.width = width
+        self.width = width 
         self.item_height = 30  # 每一项的高度
         self.height = amount * self.item_height
         self.offset = 0        # 偏移量（用于滚动）
@@ -203,12 +204,14 @@ class TimeSpin(tk.Frame):
         self.font_l = font_l
         self.font_b = font_b
         self.mouse_y_org = 0
+        self.bg = bg
+        self.text_side = text_side
 
         if amount > len(self.values):
             raise ValueError("The amount is too large.")
 
-        self.canvas = tk.Canvas(self, width=self.width, height=self.height, bg="white")
-        self.canvas.pack(side="left")
+        self.canvas = tk.Canvas(self, width=self.width, bg=self.bg, height=self.height)
+        
 
         self.canvas.bind("<MouseWheel>", self.on_mousewheel)# 绑定滚轮
         self.canvas.bind("<B1-Motion>", self.on_mousedrag)# 绑定鼠标拖拽
@@ -217,8 +220,16 @@ class TimeSpin(tk.Frame):
 
         self.canvas.create_line(0, self.mid, width, self.height//2, fill="red", dash=(2, 2))# 中心线（选中区域）
 
-        self.label = tk.Label(self, text=self.text, font=self.font_l)
-        self.label.pack(side='right')
+        self.label = tk.Label(self, bg=self.bg, text=self.text, font=self.font_l)
+        if self.text_side == 'bottom':
+            self.canvas.pack(side='top')
+        elif self.text_side == 'top':
+            self.canvas.pack(side='bottom')
+        elif self.text_side == 'left':
+            self.canvas.pack(side='right')
+        else:
+            self.canvas.pack(side='left')
+        self.label.pack(side=self.text_side)
 
     def draw(self):
         """绘制滚轮上的值"""
@@ -300,6 +311,75 @@ class TimeSpin(tk.Frame):
     def get_selected(self):
         """返回当前选中的值"""
         return self.values[self.idx]
+    
+class CfmWindow(tk.Toplevel):
+    """确认界面"""
+    def __init__(self, master=None, text="", textvariable:tk.StringVar=None, font_l="TkDefaultFont", font_b="TkDefaultFont", _title="确认窗口", on_confirm=None, on_cancel=None, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self.master = master
+        self._title = _title
+        self.text = text
+        self.textvariable = textvariable
+        self.font_l = font_l
+        self.font_b = font_b
+        self.on_confirm = on_confirm  # 外部传入的函数（确认）
+        self.on_cancel = on_cancel    # 外部传入的函数（取消）
+        self.if_cfm = False
+
+        if text and textvariable:  #若两种文本同时输入，报错且以text输入值为准
+            textvariable = None
+            raise ValueError('冲突！输入了多种文本！')
+        elif textvariable:  #若textvariable类型错误，则使用text的默认值，即''
+            if not isinstance(self.textvariable, tk.StringVar):
+                raise TypeError("textvariable 必须是 tk.StringVar 类型")
+
+        self.title(self._title)
+        self.geometry('300x100')
+        self.resizable(False, False)
+        self.withdraw()
+
+        self.protocol('WM_DELETE_WINDOW', self.withdraw)
+
+        if self.textvariable:
+            label = tk.Label(self, font=self.font_l, textvariable=self.textvariable)
+        else:
+            label = tk.Label(self, font=self.font_l, text=self.text)
+        label.pack(pady=10)
+
+        btn_frame = tk.Frame(self)
+        btn_frame.pack(pady=5)
+
+        btn_ok = tk.Button(btn_frame, text="确认", width=10, command=self._do_confirm, bg='grey', fg='white', bd=2, font=self.font_b)
+        btn_ok.pack(side="left", padx=10)
+
+        btn_cancel = tk.Button(btn_frame, text="取消", width=10, command=self._do_cancel, bg='grey', fg='white', bd=2, font=self.font_b)
+        btn_cancel.pack(side="left", padx=10)
+
+    def _do_confirm(self):
+        """点击确认"""
+        if callable(self.on_confirm):
+            self.on_confirm()
+        self.if_cfm = True
+        self.withdraw()
+        return True
+
+    def _do_cancel(self):
+        """点击取消"""
+        if callable(self.on_cancel):
+            self.on_cancel()
+        self.if_cfm = False
+        self.withdraw()
+        return False
+
+    def show(self):
+        """显示确认界面"""
+        if self.state() != 'withdrawn':
+            self.withdraw()
+            self.deiconify()
+        else:
+            self.deiconify()
+        self.lift()
+            
 
 if __name__ == '__main__':
     def a(event):
@@ -345,7 +425,11 @@ if __name__ == '__main__':
     font_width_deal('123', lab2)
 
     abcdefg = ['0', "1", "2", "3"]
-    timespin = TimeSpin(root, values=abcdefg, amount=4)
+    timespin = TimeSpin(root, values=abcdefg, amount=4, text_side='left', text='abc')
     timespin.pack()
+
+    cfmw = CfmWindow(root, _title='123', font_l=('微软雅黑', 13), font_b=('微软雅黑', 10))
+    bto3 = tk.Button(root, text='Show', command=cfmw.show)
+    bto3.pack()
 
     root.mainloop()

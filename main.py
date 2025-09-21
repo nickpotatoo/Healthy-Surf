@@ -176,13 +176,16 @@ def password(event_f):  # 用于密码确认
         try:
             if shur1.get() == passwordkey:
                 if event_f == 0:
-                    root.destroy()
                     root3.destroy()
+                    root.destroy()
                 elif event_f == 1:
                     history_check()
                     root3.destroy()
                 elif event_f == 2:
                     sp_window()
+                    root3.destroy()
+                elif event_f ==3:
+                    cc_window()
                     root3.destroy()
             elif shur1.get() == 'admin':
                 print('admin')
@@ -234,7 +237,7 @@ def get_screen():  #主程序中使用截屏
     screen_print.screen_print(address, max_amount, qty)
     root.after(p_gap, get_screen)
 
-def sp_window():
+def sp_window():  #显示截屏配置界面
     def sp_config_write_json():  #用于将config中数值以json格式写入本地
         if os.path.exists('config.json'):
             try:
@@ -299,7 +302,7 @@ def sp_window():
         else:
             pass
     
-    def change():
+    def change():  #用于确认是否发生修改
         nonlocal if_change
         if_change = True
     
@@ -350,14 +353,52 @@ def sp_window():
     bto_sp_adsc = tk.Button(root5,bd=1,height=1,width=2,font=('微软雅黑', 9),bg='grey',fg='white',text='▼',command=lambda : (bto_sp_adsc_event(), change()))
     cav_sp.create_window(538, 200, window=bto_sp_adsc)
 
-    tp = moretk.ToolTip(lab_sp_address, text=address_cache)
+    tp = moretk.ToolTip(lab_sp_address, text=address_cache)  
 
-    cbb_sp_gap.bind("<Button-1>",lambda event : change())
+    cbb_sp_gap.bind("<Button-1>",lambda event : change())  #用于确认是否发生修改
     cbb_sp_qy.bind("<Button-1>", lambda event : change())
     cbb_sp_ma.bind("<Button-1>", lambda event : change())
 
-    root5.protocol('WM_DELETE_WINDOW', if_save)
-    
+    root5.protocol('WM_DELETE_WINDOW', if_save)  #关闭时显示是否保存界面（若发生修改）
+
+def cc_window():
+    def cfm():
+        cfmw.show()
+        cch_result = cch.get_selected()
+        ccm_result = ccm.get_selected()
+        tv.set("是否确认%d小时%d分钟后关机？"%(cch_result, ccm_result))
+
+    def on_confirm():
+        print(1)
+
+    window_cc = tk.Toplevel(root)
+    window_cc.title('定时关机设置')
+    window_cc.geometry('300x350')
+    window_cc.configure(bg='white')
+    window_cc.resizable(False, False)
+
+    tv = tk.StringVar()
+    tv.set("None")
+    cfmw = moretk.CfmWindow(window_cc, textvariable=tv, font_b='微软雅黑', font_l='微软雅黑', on_cancel=lambda : cfmw.withdraw(), on_confirm=on_confirm)
+
+    label_cc = tk.Label(window_cc, text='选择关机时间间隔', font=('微软雅黑', 14), fg="#000000", bg='white')
+    label_cc.place(x=150, y=30, anchor='center')
+
+    list_h = [i for i in range(1,25)]
+    list_m = [i for i in range(1,61)]
+
+    timespin_cc_h = cch = moretk.TimeSpin(window_cc, list_h, amount=6, text='小时', font_l=('微软雅黑', 14), font_b=('微软雅黑', 14), bg='white', text_side='bottom')
+    timespin_cc_m = ccm = moretk.TimeSpin(window_cc, list_m, amount=6, text='分钟', font_l=('微软雅黑', 14), font_b=('微软雅黑', 14), bg='white', text_side='bottom')
+    timespin_cc_h.place(x=80, y=160, anchor='center')
+    timespin_cc_m.place(x=220, y=160, anchor='center')
+
+    bto_cfm = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='确认', command=cfm)
+    bto_cacl = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消', command=window_cc.destroy)
+    bto_cfm.place(x=80, y=300, anchor='center')
+    bto_cacl.place(x=220, y=300, anchor='center')
+
+
+
 root = tk.Tk()
 root.title(f'健康上网{version}')
 root.geometry('662x400')
@@ -377,6 +418,8 @@ bto1 = tk.Button(root,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='w
 cav1.create_window(592,30,window=bto1)
 bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时截屏',command=lambda : password(2))
 cav1.create_window(100,30,window=bto4)
+bto_cc = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时关机',command=lambda : password(3))
+cav1.create_window(100, 370, window=bto_cc)
 
 root.protocol('WM_DELETE_WINDOW', lambda : password(0))
 
