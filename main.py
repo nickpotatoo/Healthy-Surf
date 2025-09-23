@@ -8,7 +8,7 @@ from tkinter import font as tkfont
 import os
 import json        #导入必要库
 
-version = 'beta-v0.0.7'
+version = 'beta-v0.0.8'
 time_gap = 0  #该变量用于记录当天的使用时间
 org_time = 0
 org_time_date = 0
