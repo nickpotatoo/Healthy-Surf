@@ -28,14 +28,23 @@ beta-v-0.7:
 	更新了定时关机的图形界面（待完善）
 beta-v-0.8:
 	现在使用git进行版本管理
+	实现修改TimeSpin当下显示功能（引入current方法）
+	实现设置TimeSpin默认值功能
+	moretk中增加Timer类
+	优化了CfmWindow的部分逻辑
+	实现了定时关机功能
+	实现了定时关机前提醒功能
 
 待解决问题:
         运行时可以通过修改config使下一次启动时读取修改后的config
         可以在任务管理器中被强制关闭
 未来可能添加功能：
-		定时关机
 		流量统计
 		截屏软件内阅读
 		更新日志优化（软件内阅读）
 		考虑使用TextCombobox以及AddressInputBox
-		自定义history, config保存路径（？）
+		自定义history, config保存路径（？）<---制作新的配置保存界面
+		提升moretk代码健壮性
+		优化时间记录功能实现
+		优化截屏库
+		优化历史记录删除功能

@@ -2,6 +2,7 @@ import tkinter as tk
 import screen_print
 import moretk
 from datetime import datetime
+import time
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import font as tkfont
@@ -20,7 +21,9 @@ passwordkey = '1'
 if_first_load = 0
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
-history = {}    
+history = {}
+if_cc_conduct = False
+cc_timer = None
 
 def load_history_json():   #读取或创建本地历史文件，将结果保存为字典history
     global history, time_date
@@ -367,37 +370,100 @@ def cc_window():
         cch_result = cch.get_selected()
         ccm_result = ccm.get_selected()
         tv.set("是否确认%d小时%d分钟后关机？"%(cch_result, ccm_result))
-
+        
     def on_confirm():
-        print(1)
+        global if_cc_conduct, cc_timer
+        cch_result = cch.get_selected()
+        ccm_result = ccm.get_selected()
+        if_cc_conduct = True
+        cc_timer = moretk.Timer(root, cch_result*3600+ccm_result*60, on_cclose)
+        window_cc.destroy()
 
-    window_cc = tk.Toplevel(root)
-    window_cc.title('定时关机设置')
-    window_cc.geometry('300x350')
-    window_cc.configure(bg='white')
-    window_cc.resizable(False, False)
+    def cancel_cc_cfm():
+        ccc_cfmw = moretk.CfmWindow(window_ccc, text = "确认取消电脑定时关机？", font_b='微软雅黑', font_l='微软雅黑', on_cancel=lambda : ccc_cfmw.withdraw(), on_confirm=cancel_cc)
+        ccc_cfmw.show()
 
-    tv = tk.StringVar()
-    tv.set("None")
-    cfmw = moretk.CfmWindow(window_cc, textvariable=tv, font_b='微软雅黑', font_l='微软雅黑', on_cancel=lambda : cfmw.withdraw(), on_confirm=on_confirm)
+    def cancel_cc():
+        global if_cc_conduct
+        cc_timer.cancel()
+        if_cc_conduct = False
+        window_ccc.destroy()
 
-    label_cc = tk.Label(window_cc, text='选择关机时间间隔', font=('微软雅黑', 14), fg="#000000", bg='white')
-    label_cc.place(x=150, y=30, anchor='center')
+    def on_cclose():
+        def shutdown():
+            global if_cc_conduct
+            if_cc_conduct = False
+            os.system("shutdown /s /t 1")
+        shutdownreminder = n =tk.Toplevel(root)
 
-    list_h = [i for i in range(1,25)]
-    list_m = [i for i in range(1,61)]
+        n.title('错误')
+        n.geometry('400x100')
+        n.configure(bg='white')
+        n.resizable(False, False)
 
-    timespin_cc_h = cch = moretk.TimeSpin(window_cc, list_h, amount=6, text='小时', font_l=('微软雅黑', 14), font_b=('微软雅黑', 14), bg='white', text_side='bottom')
-    timespin_cc_m = ccm = moretk.TimeSpin(window_cc, list_m, amount=6, text='分钟', font_l=('微软雅黑', 14), font_b=('微软雅黑', 14), bg='white', text_side='bottom')
-    timespin_cc_h.place(x=80, y=160, anchor='center')
-    timespin_cc_m.place(x=220, y=160, anchor='center')
+        nlabel = tk.Label(n, text='电脑将于一分钟后关机，请及时保存文件！',font=('微软雅黑', 14),fg="#000000", bg='white')
+        nlabel.pack(pady=30)
 
-    bto_cfm = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='确认', command=cfm)
-    bto_cacl = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消', command=window_cc.destroy)
-    bto_cfm.place(x=80, y=300, anchor='center')
-    bto_cacl.place(x=220, y=300, anchor='center')
+        root.after(60000, shutdown)
 
+    if not if_cc_conduct:
+        window_ccc = None
+        window_cc = tk.Toplevel(root)
+        window_cc.title('定时关机设置')
+        window_cc.geometry('300x350')
+        window_cc.configure(bg='white')
+        window_cc.resizable(False, False)
 
+        tv = tk.StringVar()
+        tv.set("None")
+        cfmw = moretk.CfmWindow(window_cc, textvariable=tv, font_b='微软雅黑', font_l='微软雅黑', on_cancel=lambda : cfmw.withdraw(), on_confirm=on_confirm)
+
+        label_cc = tk.Label(window_cc, text='选择关机时间间隔', font=('微软雅黑', 14), fg="#000000", bg='white')
+        label_cc.place(x=150, y=30, anchor='center')
+
+        list_h = [i for i in range(0,25)]
+        list_m = [i for i in range(1,61)]
+
+        timespin_cc_h = cch = moretk.TimeSpin(window_cc, list_h, amount=6, text='小时', font_l=('微软雅黑', 14), font_b=('微软雅黑', 14), bg='white', text_side='bottom')
+        timespin_cc_m = ccm = moretk.TimeSpin(window_cc, list_m, amount=6, text='分钟', font_l=('微软雅黑', 14), font_b=('微软雅黑', 14), bg='white', text_side='bottom')
+        cch.current(0)
+        ccm.current(0)
+        timespin_cc_h.place(x=80, y=160, anchor='center')
+        timespin_cc_m.place(x=220, y=160, anchor='center')
+
+        bto_cfm = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='确认', command=cfm)
+        bto_cacl = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消', command=window_cc.destroy)
+        bto_cfm.place(x=80, y=300, anchor='center')
+        bto_cacl.place(x=220, y=300, anchor='center')
+    
+    else:
+        window_cc = None
+        window_ccc = tk.Toplevel(root)
+        window_ccc.title('正在为关机计时')
+        window_ccc.geometry('300x220')
+        window_ccc.configure(bg='white')
+        window_ccc.resizable(False, False)
+
+        frame_cc = tk.Frame(window_ccc, bg='white')
+        frame_cc.pack(side="top", pady=5)
+
+        label_line1 = tk.Label(frame_cc, text="电脑将于", font=('微软雅黑', 14), fg="#000000", bg='white')
+        label_line1.pack(pady=5)
+
+        frame_line2 = tk.Frame(frame_cc, bg='white')
+        frame_line2.pack(pady=5)
+
+        label_line2 = tk.Label(frame_line2, textvariable=cc_timer.timevar_f, font=('微软雅黑', 20, 'bold'), fg="#FF0000", bg='white')
+        label_line2.pack(side='left')
+
+        label_after = tk.Label(frame_line2, text="后", font=('微软雅黑', 20, 'bold'), fg="#FF0000", bg='white')
+        label_after.pack(side='left')
+
+        label_line3 = tk.Label(frame_cc, text="关机", font=('微软雅黑', 14), fg="#000000", bg='white')
+        label_line3.pack(pady=5)
+
+        bto_cancel_cc = tk.Button(window_ccc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消关机', command=cancel_cc_cfm)
+        bto_cancel_cc.pack(pady=5)
 
 root = tk.Tk()
 root.title(f'健康上网{version}')

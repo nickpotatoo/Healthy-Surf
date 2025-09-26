@@ -23,12 +23,12 @@ def font_width_deal(address_f, label):  #用于计算地址长度是否过长，
             print('sth wrong')        
 
 class ToolTip:  #提示框
-    def __init__(self, widget, font="TkDefaultFont", textvariable:tk.StringVar=None, text='',condition=True, wraplength=500):
+    def __init__(self, widget, font="TkDefaultFont", textvariable:tk.StringVar=None, text='',judge=True, wraplength=500):
         self.if_tv = False
         self.widget = widget
         self.font = font
         self.text = text
-        self.condition = condition
+        self.judge = judge
         self.tip_window = None
         self.widget.bind("<Enter>", self.enter_tip)
         self.widget.bind("<Leave>", self.hide_tip)
@@ -46,7 +46,7 @@ class ToolTip:  #提示框
     
     def show_tip(self):
         while self.if_enter:
-            if not self.condition or self.tip_window or (not self.text and not self.textvariable):
+            if not self.judge or self.tip_window or (not self.text and not self.textvariable):
                 return
             x = self.widget.winfo_rootx() + 20
             y = self.widget.winfo_rooty() + self.widget.winfo_height() + 1
@@ -189,7 +189,7 @@ class KeyWrong(tk.Toplevel):
         self.lift()
 
 class TimeSpin(tk.Frame):
-    def __init__(self, master, values, amount=1, width=80, text='', font_l="TkDefaultFont", font_b="TkDefaultFont", bg='white', text_side:Literal['right', 'left', 'top', 'bottom']='right', *args, **kwargs):
+    def __init__(self, master, values, amount=1, width=80, text='', font_l="TkDefaultFont", font_b="TkDefaultFont", bg='white', text_side:Literal['right', 'left', 'top', 'bottom']='right', default_index:int=None, *args, **kwargs):
         super().__init__(master, bg=bg, *args, **kwargs)
 
         self.values = values
@@ -206,6 +206,7 @@ class TimeSpin(tk.Frame):
         self.mouse_y_org = 0
         self.bg = bg
         self.text_side = text_side
+        self.default_index = default_index
 
         if amount > len(self.values):
             raise ValueError("The amount is too large.")
@@ -231,8 +232,15 @@ class TimeSpin(tk.Frame):
             self.canvas.pack(side='left')
         self.label.pack(side=self.text_side)
 
+        if self.default_index:
+            self.current(self.default_index)
+
     def draw(self):
         """绘制滚轮上的值"""
+        if self.offset >= self.total_height:
+            self.offset -= self.total_height
+        elif self.offset <= -self.total_height:  #又对self.offset处理，使其不过大并循环滚动
+            self.offset += self.total_height
         self.canvas.delete("text")
         if_red = False  #用于防止两个数字被同时标红
         for i, v in enumerate(self.values):
@@ -244,7 +252,7 @@ class TimeSpin(tk.Frame):
                 if_red = True
             self.canvas.create_text(self.width//2, y, text=v, tags="text", fill=color, font=self.font_b)
             if i == len(self.values) - 1:
-                if -self.item_height <= y < self.height:   #多画一点，防止穿帮
+                if y <= self.height - self.item_height:   #多画一点，防止穿帮
                     n = len(self.values)
                     for t in range(0,n):
                         color = "black"
@@ -256,7 +264,7 @@ class TimeSpin(tk.Frame):
                             if_red = True
                         self.canvas.create_text(self.width//2, y, text=v, tags="text", fill=color, font=self.font_b)
             if i == 0:
-                if -self.item_height < y <= self.mid + self.item_height:
+                if -self.item_height <= y:
                     n = len(self.values)
                     for t in range(0,n):    #多画一点，防止穿帮
                         color = "black"
@@ -272,11 +280,6 @@ class TimeSpin(tk.Frame):
     def on_mousewheel(self, event):
         """滚动"""
         self.offset += (event.delta // 120) * self.item_height  # 鼠标滚轮调节
-
-        if self.offset >= self.total_height:  # 让它循环滚动
-            self.offset -= self.total_height
-        elif self.offset <= -self.total_height:
-            self.offset += self.total_height
 
         self.draw()
 
@@ -296,11 +299,6 @@ class TimeSpin(tk.Frame):
         
         self.offset = self.offset_org + move_value
 
-        if self.offset >= self.total_height:
-            self.offset -= self.total_height
-        elif self.offset <= -self.total_height:  #又对self.offset处理，使其不过大并循环滚动
-            self.offset += self.total_height
-
         self.draw()
 
     def on_mouse1click(self, event):
@@ -311,6 +309,13 @@ class TimeSpin(tk.Frame):
     def get_selected(self):
         """返回当前选中的值"""
         return self.values[self.idx]
+    
+    def current(self, index:int=None):
+        """改变当下绘制元素"""
+        if index != None:
+            self.offset += (self.idx - index) * self.item_height
+            self.draw()
+        return self.idx
     
 class CfmWindow(tk.Toplevel):
     """确认界面"""
@@ -355,20 +360,18 @@ class CfmWindow(tk.Toplevel):
         btn_cancel = tk.Button(btn_frame, text="取消", width=10, command=self._do_cancel, bg='grey', fg='white', bd=2, font=self.font_b)
         btn_cancel.pack(side="left", padx=10)
 
-    def _do_confirm(self):
-        """点击确认"""
-        if callable(self.on_confirm):
-            self.on_confirm()
+    def _do_confirm(self):  #确认时执行的任务
+        """点击确认执行"""
         self.if_cfm = True
-        self.withdraw()
+        if callable(self.on_confirm):
+            self.on_confirm()        
         return True
 
-    def _do_cancel(self):
-        """点击取消"""
+    def _do_cancel(self):  #取消时执行的任务
+        """点击取消执行"""
+        self.if_cfm = False
         if callable(self.on_cancel):
             self.on_cancel()
-        self.if_cfm = False
-        self.withdraw()
         return False
 
     def show(self):
@@ -379,38 +382,78 @@ class CfmWindow(tk.Toplevel):
         else:
             self.deiconify()
         self.lift()
-            
+
+class Timer:
+    """基于tkinter窗口的计时器"""
+    def __init__(self, master=None, time:int=0, func=None, judge=True):
+        self.master = master
+        self.time = time
+        self.func = func
+        self.judge = judge
+        self._if_timer_start = False
+        self._tkafter = None
+        self.timevar = tk.StringVar()
+        self.timevar_f = tk.StringVar()
+
+        self.timevar_f.set("0小时0分钟")
+        self.timevar.set(0)
+        
+        if self.time % 10 != 0:
+            raise ValueError("time属性需要是大于零的十的倍数！")
+        
+        self.timer()
+
+    def timer(self):  #以十秒钟为单位计时
+        if self.judge and self.time > 0:
+            if self._if_timer_start:
+                self.time -= 10
+                self.timevar.set(self.time)
+                self.timevar_f.set(("%d小时%d分钟")%(self.time//3600, self.time%3600//60))  #格式化的tk.Stringvar类型的时间
+                self._tkafter = self.master.after(10000, self.timer)
+            else:
+                self.timevar.set(self.time)
+                self.timevar_f.set(("%d小时%d分钟")%(self.time//3600, self.time%3600//60))  #格式化的tk.Stringvar类型的时间
+                self._if_timer_start = True
+                self._tkafter = self.master.after(10000, self.timer)
+        if self.judge and self.time == 0:
+            self.conduct()
+
+    def conduct(self):  #直接执行函数
+        if self.func:
+            self.func()
+        self._if_timer_start = False
+
+    def cancel(self):  #取消执行
+        if self._tkafter:
+            self.master.after_cancel(self._tkafter)
+            self._tkafter = None
 
 if __name__ == '__main__':
     def a(event):
         global textbox
         print(textbox.current())
 
+    def show_timer_done():
+        lab_timer.config(text="计时结束！")
+
     root = tk.Tk()
-    root.geometry("500x500")
+    root.geometry("500x600")
 
     full_text = "这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111"
 
-    #lab = tk.Label(root, text=full_text, fg="#000000", bg='white', anchor='w')
-    #lab.pack(fill='x', padx=10, pady=20)
     lab2 = tk.Label(root, text=full_text, fg="#FF0000", bg='white', anchor='w', font=("微软雅黑",10), width=50)
     lab2.pack(fill='x', padx=10, pady=20)
 
     condition1 = False
-    #tooltip = ToolTip(lab, text=full_text)
     for char in full_text:
         if char == 'T':
             condition1 = True
-    remindtip = ToolTip(lab2, text=full_text, font=("微软雅黑",10))
 
     test = AddressInputBox(root, button_size=1, default_address=r'这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111')
     test.pack()
 
-    testtip = ToolTip(test, textvariable=test.address_var_get())
-
     textbox = TextComboBox(root, text='test', values=['a','b','c'], font_l=('微软雅黑', 13), font_c=('微软雅黑', 13))
     textbox.pack()
-
     textbox.bind("<Button-1>", a)
 
     wrong = KeyWrong(root)
@@ -424,12 +467,21 @@ if __name__ == '__main__':
 
     font_width_deal('123', lab2)
 
-    abcdefg = ['0', "1", "2", "3"]
-    timespin = TimeSpin(root, values=abcdefg, amount=4, text_side='left', text='abc')
+    abcdefg = []
+    for i in range(0,13):
+        abcdefg.append(i)
+    timespin = TimeSpin(root, values=abcdefg, amount=9, text_side='left', text='abc')
     timespin.pack()
+    timespin.current(0)
 
     cfmw = CfmWindow(root, _title='123', font_l=('微软雅黑', 13), font_b=('微软雅黑', 10))
     bto3 = tk.Button(root, text='Show', command=cfmw.show)
     bto3.pack()
+
+    lab_timer = tk.Label(root, text="计时中...", fg="blue", font=("微软雅黑", 12))
+    lab_timer.pack(pady=10)
+
+    timer = Timer(root, time=10, func=show_timer_done, judge=True)
+    timer.cancel()
 
     root.mainloop()
