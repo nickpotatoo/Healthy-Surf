@@ -1,5 +1,5 @@
 import tkinter as tk
-import screen_print
+import screenshot
 import moretk
 from datetime import datetime
 import time
@@ -13,12 +13,12 @@ version = 'beta-v0.0.8'
 time_gap = 0  #该变量用于记录当天的使用时间
 org_time = 0
 org_time_date = 0
-address = R'.\screen'
+address = R'.\screenshot'
 max_amount = 100
-qty = 1
+quality = 1
 p_gap = 30*1000
 passwordkey = '1'
-if_first_load = 0
+if_first_load = True
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
 history = {}
@@ -213,31 +213,31 @@ def password(event_f):  # 用于密码确认
     bto3.pack(side='bottom', pady=10)
 
 def config_read_json(): #用于读取配置文件
-    global config, address, max_amount, qty, p_gap
+    global config, address, max_amount, quality, p_gap
     if os.path.exists('config.json'): #读取本地config
         try:
             with open('config.json', 'r') as file:
                 config = json.load(file)
         except Exception as e:
             print("读取 'config.json' 出错:", e)
-            config = {'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}
+            config = {'address':R'.\screenshot', 'max_amount': 100, 'quality': 1, 'p_gap': 30*1000}
     else: #本地配置文件初始化
         with open('config.json', 'w', newline='') as file:
-            config = {'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}
+            config = {'address':R'.\screenshot', 'max_amount': 100, 'quality': 1, 'p_gap': 30*1000}
             json.dump(config, file, indent=4)
     address = config['address']
     max_amount = config['max_amount']
-    qty = config['qty']
+    quality = config['quality']
     p_gap = config['p_gap']  #从config中获取并定义变量
 
+def get_screenshot_init():
+    global screenshoter
+    config_read_json()  #仅启动时读取config
+    screenshoter = screenshot.Screenshoter(address, max_amount, quality)
+
 def get_screen():  #主程序中使用截屏
-    global if_first_load
-    if not if_first_load:    #仅启动时读取config
-        config_read_json()
-        if_first_load = 1
-    else:
-        pass
-    screen_print.screen_print(address, max_amount, qty)
+    screenshoter.screenshot()
+    screenshoter.picture_clean()
     root.after(p_gap, get_screen)
 
 def sp_window():  #显示截屏配置界面
@@ -251,14 +251,14 @@ def sp_window():  #显示截屏配置界面
                 print("写入 'config.json' 出错:", e)
         else:
             with open('config.json', 'w', newline='') as file:
-                config_n = {'address':R'.\screen', 'max_amount': 100, 'qty': 1, 'p_gap': 30*1000}
+                config_n = {'address':R'.\screenshot', 'max_amount': 100, 'quality': 1, 'p_gap': 30*1000}
                 json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
                 sp_config_write_json()
 
     def sp_config_save():  #用于关闭时将修改后的数值写入config
         config['address'] = address_cache
         config['max_amount'] = cbb_sp_ma_list_r[cbb_sp_ma.current()]
-        config['qty'] = cbb_sp_qy_list_r[cbb_sp_qy.current()]
+        config['quality'] = cbb_sp_qy_list_r[cbb_sp_qy.current()]
         config['p_gap'] = cbb_sp_gap_list_r[cbb_sp_gap.current()]
 
     def if_save():  #确认保存界面
@@ -341,7 +341,7 @@ def sp_window():  #显示截屏配置界面
     cbb_sp_qy_list_r = [1, 2, 4]
     cbb_sp_qy_list = ['1倍质量', '2倍质量', '4倍质量']
     cbb_sp_qy = ttk.Combobox(root5, font=('微软雅黑', 14), values=cbb_sp_qy_list, width=10)
-    cbb_sp_qy.current(next(i for i, v in enumerate(cbb_sp_qy_list_r) if v == config['qty']))
+    cbb_sp_qy.current(next(i for i, v in enumerate(cbb_sp_qy_list_r) if v == config['quality']))
     cav_sp.create_window(350, 130, window=cbb_sp_qy)
 
     lab_sp_fd = tk.Label(root5, text='保存路径', font=('微软雅黑', 14), fg="#000000", bg='white')
@@ -493,6 +493,7 @@ load_history_json()
 history_read_date()
 cfm_time(1)
 update_time(1)
+get_screenshot_init()
 get_screen()
 
 root.mainloop()
