@@ -9,16 +9,15 @@ from tkinter import font as tkfont
 import os
 import json        #导入必要库
 
-version = 'beta-v0.0.8'
-time_gap = 0  #该变量用于记录当天的使用时间
-org_time = 0
-org_time_date = 0
-address = R'.\screenshot'
-max_amount = 100
-quality = 1
-p_gap = 30*1000
-passwordkey = '1'
-if_first_load = True
+version = "beta-v0.0.8"
+if_first_run = True
+time_date = "0"
+total_time = 0
+ss_address = R".\screenshot"
+ss_max_amount = 100
+ss_quality = 1
+ss_shotgap = 30*1000
+passwordkey = "1"
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
 history = {}
@@ -35,83 +34,41 @@ def load_history_json():   #读取或创建本地历史文件，将结果保存�
                     history[int(k)] = v
         except Exception as e:
             print("读取 history.json 出错:", e)
-            history[time_date] = '0#0#0#0'
+            history[time_date] = "0"
     else:
         with open('history.json', 'w', newline='') as file:
             hty_n = {}
-            hty_n[time_date] = "0#0#0#0"
+            hty_n[time_date] = "0"
             json.dump(hty_n, file, indent=4)
         history = {}
-        history[time_date] = '0#0#0#0'
-
-def update_time(if_circulate):  #计算当日使用时长，并写入本地，5秒循环
-    global org_time, time_gap
-    now = datetime.now()
-    time_date = int(now.strftime('%Y%m%d'))
-    time_hour = int(now.strftime('%H'))
-    time_min = int(now.strftime('%M'))
-    time_second = int(now.strftime('%S'))
-    now_time = time_hour * 3600 + time_min * 60 + time_second
-    time_gap += now_time - org_time
-    org_time = now_time
-    gap_hour, gap_min, gap_second = time_calculate(time_gap)
-    lab1_var.set('您今日已累计使用电脑%d小时，%d分钟，%d秒' %(gap_hour, gap_min, gap_second))
-    history[time_date] = '%d#%d#%d#%d'%(gap_hour, gap_min, gap_second, time_gap)
-    history_write_json()
-    #print(history)
-    if if_circulate == 1:
-        root.after(5000, lambda : update_time(1))
-    else:
-        pass
-
-def time_calculate(time_gap_f): #负责将输入的time_gap计算为对应的准确时间
-    gap_hour = time_gap_f//3600
-    gap_min = (time_gap_f - gap_hour*3600)//60
-    gap_second = time_gap_f - gap_hour*3600 - gap_min*60
-    return gap_hour, gap_min, gap_second
-
-def set_time(): #初始化org_time
-    global org_time
-    now = datetime.now()
-    time_hour = int(now.strftime('%H'))
-    time_min = int(now.strftime('%M'))
-    time_second = int(now.strftime('%S'))
-    org_time = time_hour * 3600 + time_min * 60 + time_second
-
-def cfm_time(if_circulate): #确认现在是否跨天，来决定是否初始化,同时也用于重新读取本地历史
-    global time_gap, time_date, org_time_date
-    if org_time_date != time_date:
-        set_time()
-        org_time_date = time_date
-        time_gap = 0
-    else:
-        history_read()
-        set_time()
-    if if_circulate == 1:
-        root.after(3600*1000, lambda : cfm_time(1))
-    else:
-        pass
+        history[time_date] = "0"
 
 def history_write_json():  #将history以json格式写入本地
     with open('history.json', 'w', newline='') as file:
         json.dump(history, file, indent=4)
 
-def history_read():   #将time_gap设定为当天的历史值
-    global time_gap, time_date
-    time_gap = get_time_gap(time_date)
+def check_history():
+    global time_date
+    if not time_date in history:
+        history[time_date] = "0"
 
-def get_time_gap(keys):  #读取并返回对应天数的本地记录的历史的time_gap
-    global history
-    get_history = history[keys]
-    positions = [i for i, letter in enumerate(get_history) if letter == '#']
-    position = positions[2]
-    time_gap_f = int(get_history[(position + 1):])
-    return time_gap_f
+def time_update_init():
+    global total_time, time_date
+    load_history_json()
+    check_history()
+    total_time = int(history[time_date])
 
-def history_read_date():  #将org_time_date设置为本地记录的最后一天
-    global org_time_date
-    last_key = next(reversed(history))
-    org_time_date = last_key
+def time_update():
+    global total_time, time_date
+    if not if_first_run:
+        total_time += 5
+    history[time_date] = str(total_time)
+    history_write_json()
+    gap_hour = total_time // 3600
+    gap_min = total_time % 3600 // 60
+    gap_sec = total_time % 60
+    lab1_var.set('您今日已累计使用电脑%d小时，%d分钟，%d秒' %(gap_hour, gap_min, gap_sec))
+    root.after(5000, time_update)
 
 def history_check():   #用于图形界面查询历史
     global history, time_date
@@ -140,22 +97,23 @@ def history_check():   #用于图形界面查询历史
         key_f = hty_key[n]
         if key_f != time_date:
             del history[key_f]
+            history_write_json()
+            htylist_refresh(0)
         else:
-            history[key_f] = '0#0#0#0'
-        history_write_json()
-        load_history_json()
-        cfm_time(0)
-        htylist_refresh(0)
-        update_time(0)
+            history[key_f] = '0'
+            history_write_json()
+            htylist_refresh(0)
 
     def htylist_insert():  #将历史写入查询界面
         global history
         nonlocal hty_key
         i=0
         for key in history:
-            time_gap_f = get_time_gap(key)
-            gap_hour, gap_min, gap_second = time_calculate(time_gap_f)
-            v = '%s:%d小时%d分钟%d秒'%(key, gap_hour, gap_min, gap_second)
+            total_time_f = history[key]
+            gap_hour = total_time_f // 3600
+            gap_min = total_time_f % 3600 // 60
+            gap_sec = total_time_f % 60
+            v = '%s:%d小时%d分钟%d秒'%(key, gap_hour, gap_min, gap_sec)
             htylist.insert(i,v)
             hty_key[i] = key
             i += 1
@@ -213,32 +171,35 @@ def password(event_f):  # 用于密码确认
     bto3.pack(side='bottom', pady=10)
 
 def config_read_json(): #用于读取配置文件
-    global config, address, max_amount, quality, p_gap
+    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap
     if os.path.exists('config.json'): #读取本地config
         try:
             with open('config.json', 'r') as file:
                 config = json.load(file)
         except Exception as e:
             print("读取 'config.json' 出错:", e)
-            config = {'address':R'.\screenshot', 'max_amount': 100, 'quality': 1, 'p_gap': 30*1000}
+            config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
     else: #本地配置文件初始化
         with open('config.json', 'w', newline='') as file:
-            config = {'address':R'.\screenshot', 'max_amount': 100, 'quality': 1, 'p_gap': 30*1000}
+            config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
             json.dump(config, file, indent=4)
-    address = config['address']
-    max_amount = config['max_amount']
-    quality = config['quality']
-    p_gap = config['p_gap']  #从config中获取并定义变量
+    try:
+        ss_address = config['ss_address']
+        ss_max_amount = config['ss_max_amount']
+        ss_quality = config['ss_quality']
+        ss_shotgap = config['ss_shotgap']  #从config中获取并定义变量
+    except:
+        config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
 
-def get_screenshot_init():
+def get_screen_init():
     global screenshoter
     config_read_json()  #仅启动时读取config
-    screenshoter = screenshot.Screenshoter(address, max_amount, quality)
+    screenshoter = screenshot.Screenshoter(ss_address, ss_max_amount, ss_quality)
 
 def get_screen():  #主程序中使用截屏
     screenshoter.screenshot()
     screenshoter.picture_clean()
-    root.after(p_gap, get_screen)
+    root.after(ss_shotgap, get_screen)
 
 def sp_window():  #显示截屏配置界面
     def sp_config_write_json():  #用于将config中数值以json格式写入本地
@@ -251,15 +212,15 @@ def sp_window():  #显示截屏配置界面
                 print("写入 'config.json' 出错:", e)
         else:
             with open('config.json', 'w', newline='') as file:
-                config_n = {'address':R'.\screenshot', 'max_amount': 100, 'quality': 1, 'p_gap': 30*1000}
+                config_n = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
                 json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
                 sp_config_write_json()
 
     def sp_config_save():  #用于关闭时将修改后的数值写入config
-        config['address'] = address_cache
-        config['max_amount'] = cbb_sp_ma_list_r[cbb_sp_ma.current()]
-        config['quality'] = cbb_sp_qy_list_r[cbb_sp_qy.current()]
-        config['p_gap'] = cbb_sp_gap_list_r[cbb_sp_gap.current()]
+        config['ss_address'] = address_cache
+        config['ss_max_amount'] = cbb_sp_ma_list_r[cbb_sp_ma.current()]
+        config['ss_quality'] = cbb_sp_qy_list_r[cbb_sp_qy.current()]
+        config['ss_shotgap'] = cbb_sp_gap_list_r[cbb_sp_gap.current()]
 
     def if_save():  #确认保存界面
         if if_change:
@@ -350,7 +311,7 @@ def sp_window():  #显示截屏配置界面
     lab_sp_address_var.set('None')
     lab_sp_address = tk.Label(root5, textvariable=lab_sp_address_var, font=('微软雅黑', 11), fg="#000000", bg='white', relief='solid', borderwidth=0.5, width=50, anchor='w')
     cav_sp.create_window(300, 200, window=lab_sp_address)
-    address_cache = address
+    address_cache = ss_address
     lab_sp_address.bind("<Configure>", lambda event : lab_sp_address_var.set(font_width_deal(address_cache)))
 
     bto_sp_adsc = tk.Button(root5,bd=1,height=1,width=2,font=('微软雅黑', 9),bg='grey',fg='white',text='▼',command=lambda : (bto_sp_adsc_event(), change()))
@@ -489,11 +450,11 @@ cav1.create_window(100, 370, window=bto_cc)
 
 root.protocol('WM_DELETE_WINDOW', lambda : password(0))
 
-load_history_json()
-history_read_date()
-cfm_time(1)
-update_time(1)
-get_screenshot_init()
+time_update_init()
+time_update()
+get_screen_init()
 get_screen()
+
+if_first_run = False
 
 root.mainloop()
