@@ -85,34 +85,33 @@ def history_check():   #用于图形界面查询历史
         htylist.delete(0,tk.END)
         hty_key = {}
         htylist_insert()
-        if if_circulate == 1:
-            root2.after(5000, lambda: htylist_refresh(1))
+        if if_circulate:
+            root2.after(5000, lambda: htylist_refresh(True))
         else:
             pass
     
     def htylist_delete():  #删除选中的本地历史并初始化
-        global history, time_date
+        global total_time, time_date
         nonlocal hty_key
         n, *args = htylist.curselection()
         key_f = hty_key[n]
         if key_f != time_date:
             del history[key_f]
-            history_write_json()
-            htylist_refresh(0)
         else:
             history[key_f] = '0'
-            history_write_json()
-            htylist_refresh(0)
+            total_time = 0
+        lab1_var.set('您今日已累计使用电脑0小时，0分钟，0秒')    
+        history_write_json()
+        htylist_refresh(0)
 
     def htylist_insert():  #将历史写入查询界面
-        global history
         nonlocal hty_key
         i=0
         for key in history:
-            total_time_f = history[key]
-            gap_hour = total_time_f // 3600
-            gap_min = total_time_f % 3600 // 60
-            gap_sec = total_time_f % 60
+            time_f = int(history[key])
+            gap_hour = time_f // 3600
+            gap_min = time_f % 3600 // 60
+            gap_sec = time_f % 60
             v = '%s:%d小时%d分钟%d秒'%(key, gap_hour, gap_min, gap_sec)
             htylist.insert(i,v)
             hty_key[i] = key

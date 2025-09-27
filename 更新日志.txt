@@ -37,6 +37,8 @@ beta-v-0.8:
 	优化了定时截屏功能，将包名由screen_print改为-->screenshot
 	修改了一系列变量名，增强程序可读性
 	重写了时间记录功能
+	优化时间记录功能实现
+	优化历史记录删除功能
 
 待解决问题:
         运行时可以通过修改config使下一次启动时读取修改后的config
@@ -48,5 +50,3 @@ beta-v-0.8:
 		考虑使用TextCombobox以及AddressInputBox
 		自定义history, config保存路径（？）<---制作新的配置保存界面
 		提升moretk代码健壮性
-		优化时间记录功能实现
-		优化历史记录删除功能
