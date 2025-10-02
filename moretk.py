@@ -71,7 +71,7 @@ class ToolTip:  #提示框
 
 class AddressInputBox(tk.Frame):  #地址输入框
     def __init__(self, master=None, text='Saving Address', font_r="TkDefaultFont", font_a="TkDefaultFont", default_address='', button_size=1, width_a=50, bg='white', if_omit=True, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
+        super().__init__(master, bg=bg, *args, **kwargs)
 
         self.text = text
         self.master = master
@@ -82,16 +82,17 @@ class AddressInputBox(tk.Frame):  #地址输入框
         self.width_a = width_a
         self.bg = bg
         self.if_omit = if_omit
+        self.__AddressChange_bind = None
 
         self.address = self.default_address
         self.address_v = tk.StringVar()
         self.address_v.set(self.address)
-        self.address_s = tk.StringVar()
+        self.address_omit = tk.StringVar()
 
-        self.label_r = tk.Label(self, text=self.text, font=self.font_r)
+        self.label_r = tk.Label(self, text=self.text, font=self.font_r, bg=self.bg)
         self.label_r.pack(side='left')
 
-        self.label_a = tk.Label(self, textvariable=self.address_s, font=self.font_a, fg="#000000", bg=self.bg, relief='solid', borderwidth=0.5, width=self.width_a, anchor='w')
+        self.label_a = tk.Label(self, textvariable=self.address_omit, font=self.font_a, fg="#000000", bg=self.bg, relief='solid', borderwidth=0.5, width=self.width_a, anchor='w')
         self.label_a.pack(side='left')
 
         self.label_a.bind("<Configure>", lambda event : self.__ads_set(ads_get=None))  
@@ -99,11 +100,13 @@ class AddressInputBox(tk.Frame):  #地址输入框
         self.button = tk.Button(self,bd=1,height=1,width=2,font=('微软雅黑', 7*self.button_size),bg='grey',fg='white',text='▼',command=self.__bto_adsca_deal)
         self.button.pack(side='right')
 
-    def bind(self, action="<Enter>", func=None):  #重写bind方法
+    def bind(self, action:str=..., func=None):  #重写bind方法
         if action == "<Enter>":
             self.label_a.bind("<Enter>", func)
         elif action == "<Leave>":
             self.label_a.bind("<Leave>", func)
+        elif action == "<AddressChange>":
+            self.__AddressChange_bind = func
 
     def winfo_rootx(self):   #重写winfo_rootx方法，返回label_a的x坐标
         return self.label_a.winfo_rootx()
@@ -114,7 +117,14 @@ class AddressInputBox(tk.Frame):  #地址输入框
     def address_var_get(self):  #获取为tk.Stringvar()实例的地址
         return self.address_v
     
+    def set(self, text=""):
+        self.address = text
+        self.address_v.set(text)
+        self.address_omit.set(font_width_deal(text, self.label_a))
+
     def __bto_adsca_deal(self):  #仅用于获取地址界面
+        if self.__AddressChange_bind:
+            self.__AddressChange_bind("this is event awa")
         ads_get =  None
         save_path = filedialog.askdirectory()
         if save_path:
@@ -126,21 +136,21 @@ class AddressInputBox(tk.Frame):  #地址输入框
     def __ads_set(self, ads_get):  #用于为各个地址属性赋值最终self.address与self.address_v即为地址，ads_get=None时用于初始化
         if not ads_get:
             if self.if_omit:
-                self.address_s.set(font_width_deal(self.address, self.label_a))
+                self.address_omit.set(font_width_deal(self.address, self.label_a))
             else:
-                self.address_s.set(self.address)
+                self.address_omit.set(self.address)
         else:
             if self.if_omit:
-                address_t = font_width_deal(ads_get, self.label_a)
+                address_c = font_width_deal(ads_get, self.label_a)
             else:
-                self.address_t = self.address
+                address_c = self.address
                 self.address_v.set(ads_get)
                 self.address = ads_get
-            self.address_s.set(address_t)
+            self.address_omit.set(address_c)
 
 class TextComboBox(tk.Frame):   #带有文字的combobox
-    def __init__(self, master=None, text='', values=[], default_index=0, font_l="TkDefaultFont", font_c="TkDefaultFont", *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
+    def __init__(self, master=None, text='', values=[], default_index=0, width=10, font_l="TkDefaultFont", font_c="TkDefaultFont", bg="white", *args, **kwargs):
+        super().__init__(master, bg=bg, *args, **kwargs)
 
         self.master = master
         self.text = text
@@ -148,11 +158,13 @@ class TextComboBox(tk.Frame):   #带有文字的combobox
         self.default_index = default_index
         self.font_l = font_l
         self.font_c = font_c
+        self.width = width
+        self.bg = bg
 
-        self.label = tk.Label(self, text=self.text, font=self.font_l)
+        self.label = tk.Label(self, text=self.text, font=self.font_l, bg=self.bg)
         self.label.pack(side='left')
 
-        self.combobox = ttk.Combobox(self, values=self.values, font=self.font_c)
+        self.combobox = ttk.Combobox(self, values=self.values, font=self.font_c, width=self.width)
         self.combobox.pack(side='right')
         if self.values:    #如果有给值的话，默认为default_index
             self.combobox.current(self.default_index)

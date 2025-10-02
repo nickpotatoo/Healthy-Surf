@@ -142,7 +142,7 @@ def password(event_f):  # 用于密码确认
                     history_check()
                     root3.destroy()
                 elif event_f == 2:
-                    sp_window()
+                    ss_window()
                     root3.destroy()
                 elif event_f ==3:
                     cc_window()
@@ -200,8 +200,8 @@ def get_screen():  #主程序中使用截屏
     screenshoter.picture_clean()
     root.after(ss_shotgap, get_screen)
 
-def sp_window():  #显示截屏配置界面
-    def sp_config_write_json():  #用于将config中数值以json格式写入本地
+def ss_window():  #显示截屏配置界面
+    def ss_config_write_json():  #用于将config中数值以json格式写入本地
         if os.path.exists('config.json'):
             try:
                 with open('config.json', 'w', newline='') as file:
@@ -213,13 +213,14 @@ def sp_window():  #显示截屏配置界面
             with open('config.json', 'w', newline='') as file:
                 config_n = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
                 json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
-                sp_config_write_json()
+                ss_config_write_json()
 
-    def sp_config_save():  #用于关闭时将修改后的数值写入config
-        config['ss_address'] = address_cache
-        config['ss_max_amount'] = cbb_sp_ma_list_r[cbb_sp_ma.current()]
-        config['ss_quality'] = cbb_sp_qy_list_r[cbb_sp_qy.current()]
-        config['ss_shotgap'] = cbb_sp_gap_list_r[cbb_sp_gap.current()]
+    def ss_config_save():  #用于关闭时将修改后的数值写入config
+        config['ss_address'] = ss_ads_pic.address_get()
+        config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
+        config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
+        config['ss_shotgap'] = ss_cbb_gap_list_r[ss_cbb_gap.current()]
+        pass
 
     def if_save():  #确认保存界面
         if if_change:
@@ -232,38 +233,12 @@ def sp_window():  #显示截屏配置界面
             lab_is = tk.Label(root6, text='是否保存', font=('微软雅黑', 20), fg="#000000", bg='white')
             lab_is.pack(side='top', pady=20)
 
-            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (sp_config_save(), sp_config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
+            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (ss_config_save(), ss_config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
             bto_is_n = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='取消',command=lambda : (root6.destroy(), root5.destroy()))
             bto_is_y.pack(side='left', padx=60)
             bto_is_n.pack(side='right', padx=60)
         else:
             root5.destroy()
-
-    def font_width_deal(address_f):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址
-        nonlocal lab_sp_address
-        address_c = address_f
-        address_font = tkfont.Font(family='微软雅黑', size=11)
-        #print(address_font.measure(address_c), lab_sp_address.winfo_width())
-        if address_font.measure(address_c) <= lab_sp_address.winfo_width():
-            return address_f
-        else:
-            address_f = ''
-            for v in address_c:
-                if address_font.measure(address_f + v + '...') > lab_sp_address.winfo_width() - 10:
-                    break
-                address_f += v
-            address_f += '...'
-            return address_f
-        
-    def bto_sp_adsc_event():  #用于询问获取保存路径，并刷新路径地址
-        nonlocal address_cache, lab_sp_address_var
-        save_path = filedialog.askdirectory()
-        print(save_path)
-        if save_path:
-            address_cache = save_path
-            lab_sp_address_var.set(font_width_deal(address_cache))
-        else:
-            pass
     
     def change():  #用于确认是否发生修改
         nonlocal if_change
@@ -277,50 +252,40 @@ def sp_window():  #显示截屏配置界面
     root5.configure(bg='white')
     root5.resizable(False, False)
 
-    cav_sp = tk.Canvas(root5, width=662, height=400, bg='white')
-    cav_sp.pack()
+    ss_cbb_gap_list_r = [5*1000, 30*1000, 60*1000, 5*60*1000, 15*60*1000]
+    ss_cbb_gap_list = ['5秒', '30秒', '1分钟', '5分钟', '15分钟']
+    ss_cbb_gap = moretk.TextComboBox(root5, text="截屏间隔", font_l=('微软雅黑', 14),font_c=('微软雅黑', 12), values=ss_cbb_gap_list, bg="white")
+    ss_cbb_gap.current(next(i for i, v in enumerate(ss_cbb_gap_list_r) if v == config["ss_shotgap"]))
+    ss_cbb_gap.pack(pady=10)
 
-    lab_sp_gap = tk.Label(root5, text='截屏间隔', font=('微软雅黑', 14), fg="#000000", bg='white')
-    cav_sp.create_window(200, 50, window=lab_sp_gap)
-    cbb_sp_gap_list_r = [5*1000, 30*1000, 60*1000, 5*60*1000, 15*60*1000]
-    cbb_sp_gap_list = ['5秒', '30秒', '1分钟', '5分钟', '15分钟']
-    cbb_sp_gap = ttk.Combobox(root5, font=('微软雅黑', 14), values=cbb_sp_gap_list, width=10)
-    cbb_sp_gap.current(next(i for i, v in enumerate(cbb_sp_gap_list_r) if v == config['p_gap']))
-    cav_sp.create_window(350, 50, window=cbb_sp_gap)
-    
-    lab_sp_ma = tk.Label(root5, text='最大保存数量', font=('微软雅黑', 14), fg="#000000", bg='white')
-    cav_sp.create_window(200, 90, window=lab_sp_ma)
-    cbb_sp_ma_list_r = [5, 50, 100, 1000]
-    cbb_sp_ma_list = ['5张', '50张', '100张', '1000张']
-    cbb_sp_ma = ttk.Combobox(root5, font=('微软雅黑', 14), values=cbb_sp_ma_list, width=10)
-    cbb_sp_ma.current(next(i for i, v in enumerate(cbb_sp_ma_list_r) if v == config['max_amount']))
-    cav_sp.create_window(350, 90, window=cbb_sp_ma)
+    ss_cbb_ma_list_r = [5, 50, 100, 1000]
+    ss_cbb_ma_list = ['5张', '50张', '100张', '1000张']
+    ss_cbb_ma = moretk.TextComboBox(root5, text="最大保存数量", font_l=('微软雅黑', 14), font_c=('微软雅黑', 12), bg="white", values=ss_cbb_ma_list)
+    ss_cbb_ma.current(next(i for i, v in enumerate(ss_cbb_ma_list_r) if v == config["ss_max_amount"]))
+    ss_cbb_ma.pack(pady=10)
 
-    lab_sp_qy = tk.Label(root5, text='图片质量', font=('微软雅黑', 14), fg="#000000", bg='white')
-    cav_sp.create_window(200, 130, window=lab_sp_qy)
-    cbb_sp_qy_list_r = [1, 2, 4]
-    cbb_sp_qy_list = ['1倍质量', '2倍质量', '4倍质量']
-    cbb_sp_qy = ttk.Combobox(root5, font=('微软雅黑', 14), values=cbb_sp_qy_list, width=10)
-    cbb_sp_qy.current(next(i for i, v in enumerate(cbb_sp_qy_list_r) if v == config['quality']))
-    cav_sp.create_window(350, 130, window=cbb_sp_qy)
+    ss_cbb_qty_list_r = [1, 2, 4]
+    ss_cbb_qty_list = ['1倍质量', '2倍质量', '4倍质量']
+    ss_cbb_qty = moretk.TextComboBox(root5, text="图片质量", font_l=('微软雅黑', 14), font_c=('微软雅黑', 12), bg="white", values=ss_cbb_qty_list)
+    ss_cbb_qty.current(next(i for i, v in enumerate(ss_cbb_qty_list_r) if v == config["ss_quality"]))
+    ss_cbb_qty.pack(pady=10)
 
-    lab_sp_fd = tk.Label(root5, text='保存路径', font=('微软雅黑', 14), fg="#000000", bg='white')
-    cav_sp.create_window(300, 170, window=lab_sp_fd)
-    lab_sp_address_var = tk.StringVar()
-    lab_sp_address_var.set('None')
-    lab_sp_address = tk.Label(root5, textvariable=lab_sp_address_var, font=('微软雅黑', 11), fg="#000000", bg='white', relief='solid', borderwidth=0.5, width=50, anchor='w')
-    cav_sp.create_window(300, 200, window=lab_sp_address)
-    address_cache = ss_address
-    lab_sp_address.bind("<Configure>", lambda event : lab_sp_address_var.set(font_width_deal(address_cache)))
+    ss_ads_pic = moretk.AddressInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_address=ss_address, bg="white")
+    ss_ads_pic.pack(pady=10)
 
-    bto_sp_adsc = tk.Button(root5,bd=1,height=1,width=2,font=('微软雅黑', 9),bg='grey',fg='white',text='▼',command=lambda : (bto_sp_adsc_event(), change()))
-    cav_sp.create_window(538, 200, window=bto_sp_adsc)
+    ss_bto_frame = tk.Frame(root5, bg="white")
+    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (ss_config_save(), ss_config_write_json(), config_read_json(), root5.destroy()))
+    ss_bto_n = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消',command=root5.destroy)
+    ss_bto_y.pack(side="left", padx=5)
+    ss_bto_n.pack(side="right", padx=5)
+    ss_bto_frame.pack(pady=10)
 
-    tp = moretk.ToolTip(lab_sp_address, text=address_cache)  
+    tp = moretk.ToolTip(ss_ads_pic, text=ss_address)
 
-    cbb_sp_gap.bind("<Button-1>",lambda event : change())  #用于确认是否发生修改
-    cbb_sp_qy.bind("<Button-1>", lambda event : change())
-    cbb_sp_ma.bind("<Button-1>", lambda event : change())
+    ss_cbb_gap.bind("<Button-1>",lambda event : change())  #用于确认是否发生修改
+    ss_cbb_ma.bind("<Button-1>", lambda event : change())
+    ss_cbb_qty.bind("<Button-1>", lambda event : change())
+    ss_ads_pic.bind("<AddressChange>", lambda event : change())
 
     root5.protocol('WM_DELETE_WINDOW', if_save)  #关闭时显示是否保存界面（若发生修改）
 
