@@ -2,6 +2,7 @@ import tkinter as tk
 import screenshot
 import moretk
 from datetime import datetime
+import time
 from PIL import Image
 from pystray import Icon, MenuItem, Menu
 import os
@@ -18,6 +19,7 @@ ss_quality = 1
 ss_shotgap = 30*1000
 default_password = "1"
 default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1}
+default_hide = False
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
 history = {}
@@ -42,6 +44,11 @@ class oIcon:
 
     def exit(self):
         password(0)
+
+def run_timer():
+    with open("monitor", "w") as file:
+        file.write("b"+str(time.time()))
+    root.after(10000,run_timer)
 
 def load_history_json():   #读取或创建本地历史文件，将结果保存为字典history
     global history, time_date
@@ -148,29 +155,29 @@ def history_check():   #用于图形界面查询历史
     
     htylist.pack()
 
-def if_quit():
-    def quit_straight():
+def if_quit():  #询问推出选项
+    def quit_straight():  #选择直接退出
         global if_quit_judge
-        if qiw_cb_var.get():
+        if qiw_cb_var.get():  #选了不再提问，则储存至config
             if_quit_judge = 1
             config['if_quit_judge'] = 1
             config_write_json()
         password(0)
         n.destroy()
 
-    def window_hide():
+    def window_hide():  #选择最小化
         global if_quit_judge
-        if qiw_cb_var.get():
+        if qiw_cb_var.get():  #选了不再提问，则储存至config
             if_quit_judge = 0
             config['if_quit_judge'] = 0
             config_write_json()
-        for widget in root.winfo_children():
+        for widget in root.winfo_children():  #清理所有打开的界面
                 if isinstance(widget, tk.Toplevel):
                     widget.destroy()
         root.withdraw()
         n.destroy()
 
-    if if_quit_judge == -1:
+    if if_quit_judge == -1:   #如果没选过不再提问，或者后续取消不在提问，则问这个问题
         quit_inquire_window = n = tk.Toplevel(root)
         n.title('退出选项')
         n.geometry('300x170')
@@ -179,6 +186,7 @@ def if_quit():
 
         qiw_cb_var = tk.BooleanVar()
         qiw_cb = tk.Checkbutton(n, text="下次不再提问", font=("微软雅黑", 10), bg="white", variable=qiw_cb_var)
+        qiw_cb.deselect()
         qiw_cb.pack(pady=5)
 
         qiw_bto_1 = tk.Button(n,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='直接退出',command=quit_straight)
@@ -204,6 +212,8 @@ def password(event_f):  # 用于密码确认
                 if event_f == 0:
                     if not(if_quit_judge):
                         icon.tray_icon.stop()
+                    with open("monitor") as file:
+                        file.write("d")
                     root3.destroy()
                     icon.tray_icon.stop()
                     root.destroy()
@@ -286,12 +296,17 @@ def config_write_json():  #用于将config中数值以json格式写入本地
 
 
 def ss_window():  #显示截屏配置界面
-    def ss_config_save():  #用于关闭时将修改后的数值写入config
+    def config_save():  #用于关闭时将修改后的数值写入config
         config['ss_address'] = ss_ads_pic.address_get()
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
         config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
         config['ss_shotgap'] = ss_cbb_gap_list_r[ss_cbb_gap.current()]
-        pass
+        if ss_quitway_cb_1_var.get():
+            config['if_quit_judge'] = 1
+        elif ss_quitway_cb_2_var.get():
+            config['if_quit_judge'] = 0
+        else:
+            config['if_quit_judge'] = -1
 
     def if_save():  #确认保存界面
         if if_change:
@@ -304,7 +319,7 @@ def ss_window():  #显示截屏配置界面
             lab_is = tk.Label(root6, text='是否保存', font=('微软雅黑', 20), fg="#000000", bg='white')
             lab_is.pack(side='top', pady=20)
 
-            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (ss_config_save(), config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
+            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
             bto_is_n = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='取消',command=lambda : (root6.destroy(), root5.destroy()))
             bto_is_y.pack(side='left', padx=60)
             bto_is_n.pack(side='right', padx=60)
@@ -314,12 +329,20 @@ def ss_window():  #显示截屏配置界面
     def change():  #用于确认是否发生修改
         nonlocal if_change
         if_change = True
+
+    def quitway_choose_1():
+        if ss_quitway_cb_1_var.get():
+            ss_quitway_cb_2.deselect()
+
+    def quitway_choose_2():
+        if ss_quitway_cb_2_var.get():
+            ss_quitway_cb_1.deselect()
     
     if_change = False
 
     root5 = tk.Toplevel(root)
-    root5.title('截屏设置')
-    root5.geometry('600x300')
+    root5.title('设置界面')
+    root5.geometry('600x400')
     root5.configure(bg='white')
     root5.resizable(False, False)
 
@@ -344,8 +367,25 @@ def ss_window():  #显示截屏配置界面
     ss_ads_pic = moretk.AddressInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_address=ss_address, bg="white")
     ss_ads_pic.pack(pady=10)
 
+    ss_quitway_frame = tk.Frame(root5, bg="white")
+    ss_quitway_lab = tk.Label(root5, text='  当退出时，软件将：',font=('微软雅黑', 14),fg="#000000", bg='white')
+    ss_quitway_lab.pack(pady=5,anchor='center')
+    ss_quitway_cb_1_var = tk.BooleanVar()
+    ss_quitway_cb_2_var = tk.BooleanVar()
+    ss_quitway_cb_1 = tk.Checkbutton(ss_quitway_frame,font=('微软雅黑', 11),bg='white',text='直接退出',variable=ss_quitway_cb_1_var,command=quitway_choose_1)
+    ss_quitway_cb_2 = tk.Checkbutton(ss_quitway_frame,font=('微软雅黑', 11),bg='white',text='最小化',variable=ss_quitway_cb_2_var,command=quitway_choose_2)
+    ss_quitway_cb_1.deselect()
+    ss_quitway_cb_2.deselect()
+    if config['if_quit_judge'] == 1:
+        ss_quitway_cb_1.select()
+    elif config['if_quit_judge'] == 0:
+        ss_quitway_cb_2.select()
+    ss_quitway_cb_1.pack(side='left', padx=5)
+    ss_quitway_cb_2.pack(side='right', padx=5)
+    ss_quitway_frame.pack(pady=5)
+
     ss_bto_frame = tk.Frame(root5, bg="white")
-    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (ss_config_save(), config_write_json(), config_read_json(), root5.destroy()))
+    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json(), config_read_json(), root5.destroy()))
     ss_bto_n = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消',command=root5.destroy)
     ss_bto_y.pack(side="left", padx=5)
     ss_bto_n.pack(side="right", padx=5)
@@ -357,6 +397,8 @@ def ss_window():  #显示截屏配置界面
     ss_cbb_ma.bind("<Button-1>", lambda event : change())
     ss_cbb_qty.bind("<Button-1>", lambda event : change())
     ss_ads_pic.bind("<AddressChange>", lambda event : change())
+    ss_quitway_cb_1.bind("<Button-1>",lambda event : change())
+    ss_quitway_cb_2.bind("<Button-1>",lambda event : change())
 
     root5.protocol('WM_DELETE_WINDOW', if_save)  #关闭时显示是否保存界面（若发生修改）
 
@@ -473,9 +515,9 @@ lab1_var.set('None')
 lab1 = tk.Label(root, textvariable=lab1_var, font=('微软雅黑', 14), fg="#000000", bg='white')
 lab1.place(x=331, y=175, anchor='center')
 
-bto1 = tk.Button(root,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='历史',command=lambda : password(1))
-bto1.place(x=592, y=30, anchor='center')
-bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时截屏',command=lambda : password(2))
+bto1 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='历史',command=lambda : password(1))
+bto1.place(x=562, y=30, anchor='center')
+bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='设置',command=lambda : password(2))
 bto4.place(x=100, y=30, anchor='center')
 bto_cc = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时关机',command=lambda : password(3))
 bto_cc.place(x=100, y=370, anchor='center')
@@ -489,9 +531,11 @@ time_update_init()
 time_update()
 get_screen_init()
 get_screen()
+run_timer()
 
 if_first_run = False
 
-#root.withdraw()
+if default_hide:
+    root.withdraw()
 
 root.mainloop()
