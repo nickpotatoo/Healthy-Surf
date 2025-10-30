@@ -26,11 +26,11 @@ history = {}
 if_cc_conduct = False
 cc_timer = None
 
-class oIcon:
+class oIcon:  #程序托盘图标
     def __init__(self, master):
         self.master = master
 
-        self.icon_image = Image.open("icon.png")
+        self.icon_image = Image.open(".\\icon.png")
         self.tray_icon = Icon("App", self.icon_image, menu=self.create_menu())
 
     def create_menu(self):
@@ -45,16 +45,21 @@ class oIcon:
     def exit(self):
         password(0)
 
-def run_timer():
-    with open("monitor", "w") as file:
-        file.write("b"+str(time.time()))
-    root.after(10000,run_timer)
+def safe_write(filename, content):  #安全写入文件
+    tmpfile = filename + ".tmp"
+    with open(tmpfile, "w") as file:
+        file.write(content)
+    os.replace(tmpfile, filename)
+
+def run_timer():   #计时器，用于更新monitor文件
+    safe_write(".\\monitor", "b" + str(time.time()))
+    root.after(10000, run_timer)
 
 def load_history_json():   #读取或创建本地历史文件，将结果保存为字典history
     global history, time_date
-    if os.path.exists('history.json'):
+    if os.path.exists('.\\history.json'):
         try:
-            with open('history.json', 'r') as file:
+            with open('.\\history.json', 'r') as file:
                 history_c = json.load(file)
                 for k, v in history_c.items():
                     history[int(k)] = v
@@ -62,7 +67,7 @@ def load_history_json():   #读取或创建本地历史文件，将结果保存�
             print("读取 history.json 出错:", e)
             history[time_date] = "0"
     else:
-        with open('history.json', 'w', newline='') as file:
+        with open('.\\history.json', 'w', newline='') as file:
             hty_n = {}
             hty_n[time_date] = "0"
             json.dump(hty_n, file, indent=4)
@@ -70,7 +75,7 @@ def load_history_json():   #读取或创建本地历史文件，将结果保存�
         history[time_date] = "0"
 
 def history_write_json():  #将history以json格式写入本地
-    with open('history.json', 'w', newline='') as file:
+    with open('.\\history.json', 'w', newline='') as file:
         json.dump(history, file, indent=4)
 
 def check_history():
@@ -212,8 +217,7 @@ def password(event_f):  # 用于密码确认
                 if event_f == 0:
                     if not(if_quit_judge):
                         icon.tray_icon.stop()
-                    with open("monitor") as file:
-                        file.write("d")
+                    safe_write("monitor", "d")
                     root3.destroy()
                     icon.tray_icon.stop()
                     root.destroy()
@@ -252,13 +256,13 @@ def config_read_json(): #用于读取配置文件
     global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge
     if os.path.exists('config.json'): #读取本地config
         try:
-            with open('config.json', 'r') as file:
+            with open('.\\config.json', 'r') as file:
                 config = json.load(file)
         except Exception as e:
             print("读取 'config.json' 出错:", e)
             config = default_config
     else: #本地配置文件初始化
-        with open('config.json', 'w', newline='') as file:
+        with open('.\\config.json', 'w', newline='') as file:
             config = default_config
             json.dump(config, file, indent=4)
     try:
@@ -283,13 +287,13 @@ def get_screen():  #主程序中使用截屏
 def config_write_json():  #用于将config中数值以json格式写入本地
         if os.path.exists('config.json'):
             try:
-                with open('config.json', 'w', newline='') as file:
+                with open('.\\config.json', 'w', newline='') as file:
                     json.dump(config, file, indent=4)
 
             except Exception as e:
                 print("写入 'config.json' 出错:", e)
         else:
-            with open('config.json', 'w', newline='') as file:
+            with open('.\\config.json', 'w', newline='') as file:
                 config_n = default_config
                 json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
                 config_write_json()
@@ -414,7 +418,7 @@ def cc_window():
         cch_result = cch.get_selected()
         ccm_result = ccm.get_selected()
         if_cc_conduct = True
-        cc_timer = moretk.Timer(root, cch_result*3600+ccm_result*60, on_cclose)
+        cc_timer = moretk.Timer(root, cch_result*3600+ccm_result*60-60, on_cclose)
         window_cc.destroy()
 
     def cancel_cc_cfm():
@@ -531,6 +535,13 @@ time_update_init()
 time_update()
 get_screen_init()
 get_screen()
+
+if os.path.exists(".\\monitor"):
+    with open(".\\monitor", "r") as file:
+        text = file.read().strip()
+        if text and text[0] == 'a':
+            default_hide = True
+
 run_timer()
 
 if_first_run = False
