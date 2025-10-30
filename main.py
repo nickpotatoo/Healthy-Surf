@@ -3,32 +3,63 @@ import screenshot
 import moretk
 from datetime import datetime
 import time
-from tkinter import ttk
-from tkinter import filedialog
-from tkinter import font as tkfont
+from PIL import Image
+from pystray import Icon, MenuItem, Menu
 import os
 import json        #导入必要库
 
-version = "beta-v0.0.8"
+version = "beta-v0.0.9"
 if_first_run = True
+if_quit_judge = -1
 time_date = "0"
 total_time = 0
 ss_address = R".\screenshot"
 ss_max_amount = 100
 ss_quality = 1
 ss_shotgap = 30*1000
-passwordkey = "1"
+default_password = "1"
+default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1}
+default_hide = False
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
 history = {}
 if_cc_conduct = False
 cc_timer = None
 
+class oIcon:  #程序托盘图标
+    def __init__(self, master):
+        self.master = master
+
+        self.icon_image = Image.open(".\\icon.png")
+        self.tray_icon = Icon("App", self.icon_image, menu=self.create_menu())
+
+    def create_menu(self):
+        return Menu(
+           MenuItem("显示", self.show),
+           MenuItem("退出", self.exit)
+       )
+
+    def show(self):
+        self.master.deiconify()
+
+    def exit(self):
+        password(0)
+
+def safe_write(filename, content):  #安全写入文件
+    tmpfile = filename + ".tmp"
+    with open(tmpfile, "w") as file:
+        file.write(content)
+    os.replace(tmpfile, filename)
+
+def run_timer():   #计时器，用于更新monitor文件
+    safe_write(".\\monitor", "b" + str(time.time()))
+    root.after(10000, run_timer)
+
 def load_history_json():   #读取或创建本地历史文件，将结果保存为字典history
     global history, time_date
-    if os.path.exists('history.json'):
+    if os.path.exists('.\\history.json'):
         try:
-            with open('history.json', 'r') as file:
+            with open('.\\history.json', 'r') as file:
                 history_c = json.load(file)
                 for k, v in history_c.items():
                     history[int(k)] = v
@@ -36,7 +67,7 @@ def load_history_json():   #读取或创建本地历史文件，将结果保存�
             print("读取 history.json 出错:", e)
             history[time_date] = "0"
     else:
-        with open('history.json', 'w', newline='') as file:
+        with open('.\\history.json', 'w', newline='') as file:
             hty_n = {}
             hty_n[time_date] = "0"
             json.dump(hty_n, file, indent=4)
@@ -44,7 +75,7 @@ def load_history_json():   #读取或创建本地历史文件，将结果保存�
         history[time_date] = "0"
 
 def history_write_json():  #将history以json格式写入本地
-    with open('history.json', 'w', newline='') as file:
+    with open('.\\history.json', 'w', newline='') as file:
         json.dump(history, file, indent=4)
 
 def check_history():
@@ -129,14 +160,66 @@ def history_check():   #用于图形界面查询历史
     
     htylist.pack()
 
+def if_quit():  #询问推出选项
+    def quit_straight():  #选择直接退出
+        global if_quit_judge
+        if qiw_cb_var.get():  #选了不再提问，则储存至config
+            if_quit_judge = 1
+            config['if_quit_judge'] = 1
+            config_write_json()
+        password(0)
+        n.destroy()
+
+    def window_hide():  #选择最小化
+        global if_quit_judge
+        if qiw_cb_var.get():  #选了不再提问，则储存至config
+            if_quit_judge = 0
+            config['if_quit_judge'] = 0
+            config_write_json()
+        for widget in root.winfo_children():  #清理所有打开的界面
+                if isinstance(widget, tk.Toplevel):
+                    widget.destroy()
+        root.withdraw()
+        n.destroy()
+
+    if if_quit_judge == -1:   #如果没选过不再提问，或者后续取消不在提问，则问这个问题
+        quit_inquire_window = n = tk.Toplevel(root)
+        n.title('退出选项')
+        n.geometry('300x170')
+        n.configure(bg='white')
+        n.resizable(False, False)
+
+        qiw_cb_var = tk.BooleanVar()
+        qiw_cb = tk.Checkbutton(n, text="下次不再提问", font=("微软雅黑", 10), bg="white", variable=qiw_cb_var)
+        qiw_cb.deselect()
+        qiw_cb.pack(pady=5)
+
+        qiw_bto_1 = tk.Button(n,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='直接退出',command=quit_straight)
+        qiw_bto_2 = tk.Button(n,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='最小化',command=window_hide)
+        qiw_bto_1.pack(pady=5)
+        qiw_bto_2.pack(pady=5)
+    
+    else:
+        if if_quit_judge:
+            password(0)
+        else:
+            for widget in root.winfo_children():
+                if isinstance(widget, tk.Toplevel):
+                    widget.destroy()
+            root.withdraw()
+
 def password(event_f):  # 用于密码确认
-    global passwordkey, root
+    global default_password, root
     
     def password_check():  # 确认密码是否正确，如果是则执行对应操作
         try:
-            if shur1.get() == passwordkey:
+            if shur1.get() == default_password:
                 if event_f == 0:
+                    if not(if_quit_judge):
+                        icon.tray_icon.stop()
+                    safe_write("monitor", "d")
                     root3.destroy()
+                    icon.tray_icon.stop()
                     root.destroy()
                 elif event_f == 1:
                     history_check()
@@ -170,25 +253,26 @@ def password(event_f):  # 用于密码确认
     bto3.pack(side='bottom', pady=10)
 
 def config_read_json(): #用于读取配置文件
-    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap
+    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge
     if os.path.exists('config.json'): #读取本地config
         try:
-            with open('config.json', 'r') as file:
+            with open('.\\config.json', 'r') as file:
                 config = json.load(file)
         except Exception as e:
             print("读取 'config.json' 出错:", e)
-            config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
+            config = default_config
     else: #本地配置文件初始化
-        with open('config.json', 'w', newline='') as file:
-            config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
+        with open('.\\config.json', 'w', newline='') as file:
+            config = default_config
             json.dump(config, file, indent=4)
     try:
         ss_address = config['ss_address']
         ss_max_amount = config['ss_max_amount']
         ss_quality = config['ss_quality']
-        ss_shotgap = config['ss_shotgap']  #从config中获取并定义变量
+        ss_shotgap = config['ss_shotgap']  
+        if_quit_judge = config['if_quit_judge'] #从config中获取并定义变量
     except:
-        config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
+        config = default_config
 
 def get_screen_init():
     global screenshoter
@@ -200,27 +284,33 @@ def get_screen():  #主程序中使用截屏
     screenshoter.picture_clean()
     root.after(ss_shotgap, get_screen)
 
-def ss_window():  #显示截屏配置界面
-    def ss_config_write_json():  #用于将config中数值以json格式写入本地
+def config_write_json():  #用于将config中数值以json格式写入本地
         if os.path.exists('config.json'):
             try:
-                with open('config.json', 'w', newline='') as file:
+                with open('.\\config.json', 'w', newline='') as file:
                     json.dump(config, file, indent=4)
 
             except Exception as e:
                 print("写入 'config.json' 出错:", e)
         else:
-            with open('config.json', 'w', newline='') as file:
-                config_n = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000}
+            with open('.\\config.json', 'w', newline='') as file:
+                config_n = default_config
                 json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
-                ss_config_write_json()
+                config_write_json()
 
-    def ss_config_save():  #用于关闭时将修改后的数值写入config
+
+def ss_window():  #显示截屏配置界面
+    def config_save():  #用于关闭时将修改后的数值写入config
         config['ss_address'] = ss_ads_pic.address_get()
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
         config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
         config['ss_shotgap'] = ss_cbb_gap_list_r[ss_cbb_gap.current()]
-        pass
+        if ss_quitway_cb_1_var.get():
+            config['if_quit_judge'] = 1
+        elif ss_quitway_cb_2_var.get():
+            config['if_quit_judge'] = 0
+        else:
+            config['if_quit_judge'] = -1
 
     def if_save():  #确认保存界面
         if if_change:
@@ -233,7 +323,7 @@ def ss_window():  #显示截屏配置界面
             lab_is = tk.Label(root6, text='是否保存', font=('微软雅黑', 20), fg="#000000", bg='white')
             lab_is.pack(side='top', pady=20)
 
-            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (ss_config_save(), ss_config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
+            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
             bto_is_n = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='取消',command=lambda : (root6.destroy(), root5.destroy()))
             bto_is_y.pack(side='left', padx=60)
             bto_is_n.pack(side='right', padx=60)
@@ -243,12 +333,20 @@ def ss_window():  #显示截屏配置界面
     def change():  #用于确认是否发生修改
         nonlocal if_change
         if_change = True
+
+    def quitway_choose_1():
+        if ss_quitway_cb_1_var.get():
+            ss_quitway_cb_2.deselect()
+
+    def quitway_choose_2():
+        if ss_quitway_cb_2_var.get():
+            ss_quitway_cb_1.deselect()
     
     if_change = False
 
     root5 = tk.Toplevel(root)
-    root5.title('截屏设置')
-    root5.geometry('600x300')
+    root5.title('设置界面')
+    root5.geometry('600x400')
     root5.configure(bg='white')
     root5.resizable(False, False)
 
@@ -273,8 +371,25 @@ def ss_window():  #显示截屏配置界面
     ss_ads_pic = moretk.AddressInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_address=ss_address, bg="white")
     ss_ads_pic.pack(pady=10)
 
+    ss_quitway_frame = tk.Frame(root5, bg="white")
+    ss_quitway_lab = tk.Label(root5, text='  当退出时，软件将：',font=('微软雅黑', 14),fg="#000000", bg='white')
+    ss_quitway_lab.pack(pady=5,anchor='center')
+    ss_quitway_cb_1_var = tk.BooleanVar()
+    ss_quitway_cb_2_var = tk.BooleanVar()
+    ss_quitway_cb_1 = tk.Checkbutton(ss_quitway_frame,font=('微软雅黑', 11),bg='white',text='直接退出',variable=ss_quitway_cb_1_var,command=quitway_choose_1)
+    ss_quitway_cb_2 = tk.Checkbutton(ss_quitway_frame,font=('微软雅黑', 11),bg='white',text='最小化',variable=ss_quitway_cb_2_var,command=quitway_choose_2)
+    ss_quitway_cb_1.deselect()
+    ss_quitway_cb_2.deselect()
+    if config['if_quit_judge'] == 1:
+        ss_quitway_cb_1.select()
+    elif config['if_quit_judge'] == 0:
+        ss_quitway_cb_2.select()
+    ss_quitway_cb_1.pack(side='left', padx=5)
+    ss_quitway_cb_2.pack(side='right', padx=5)
+    ss_quitway_frame.pack(pady=5)
+
     ss_bto_frame = tk.Frame(root5, bg="white")
-    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (ss_config_save(), ss_config_write_json(), config_read_json(), root5.destroy()))
+    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json(), config_read_json(), root5.destroy()))
     ss_bto_n = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消',command=root5.destroy)
     ss_bto_y.pack(side="left", padx=5)
     ss_bto_n.pack(side="right", padx=5)
@@ -286,6 +401,8 @@ def ss_window():  #显示截屏配置界面
     ss_cbb_ma.bind("<Button-1>", lambda event : change())
     ss_cbb_qty.bind("<Button-1>", lambda event : change())
     ss_ads_pic.bind("<AddressChange>", lambda event : change())
+    ss_quitway_cb_1.bind("<Button-1>",lambda event : change())
+    ss_quitway_cb_2.bind("<Button-1>",lambda event : change())
 
     root5.protocol('WM_DELETE_WINDOW', if_save)  #关闭时显示是否保存界面（若发生修改）
 
@@ -301,7 +418,7 @@ def cc_window():
         cch_result = cch.get_selected()
         ccm_result = ccm.get_selected()
         if_cc_conduct = True
-        cc_timer = moretk.Timer(root, cch_result*3600+ccm_result*60, on_cclose)
+        cc_timer = moretk.Timer(root, cch_result*3600+ccm_result*60-60, on_cclose)
         window_cc.destroy()
 
     def cancel_cc_cfm():
@@ -399,26 +516,37 @@ root.resizable(False, False)
 lab1_var = tk.StringVar()
 lab1_var.set('None')
 
-cav1 = tk.Canvas(root, width=662, height=400, bg='white')
-cav1.pack()
-
 lab1 = tk.Label(root, textvariable=lab1_var, font=('微软雅黑', 14), fg="#000000", bg='white')
-cav1.create_window(331, 175, window=lab1)
+lab1.place(x=331, y=175, anchor='center')
 
-bto1 = tk.Button(root,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='历史',command=lambda : password(1))
-cav1.create_window(592,30,window=bto1)
-bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时截屏',command=lambda : password(2))
-cav1.create_window(100,30,window=bto4)
+bto1 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='历史',command=lambda : password(1))
+bto1.place(x=562, y=30, anchor='center')
+bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='设置',command=lambda : password(2))
+bto4.place(x=100, y=30, anchor='center')
 bto_cc = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时关机',command=lambda : password(3))
-cav1.create_window(100, 370, window=bto_cc)
+bto_cc.place(x=100, y=370, anchor='center')
 
-root.protocol('WM_DELETE_WINDOW', lambda : password(0))
+icon = oIcon(root)
+icon.tray_icon.run_detached()
+
+root.protocol('WM_DELETE_WINDOW', if_quit)
 
 time_update_init()
 time_update()
 get_screen_init()
 get_screen()
 
+if os.path.exists(".\\monitor"):
+    with open(".\\monitor", "r") as file:
+        text = file.read().strip()
+        if text and text[0] == 'a':
+            default_hide = True
+
+run_timer()
+
 if_first_run = False
+
+if default_hide:
+    root.withdraw()
 
 root.mainloop()
