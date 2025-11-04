@@ -8,7 +8,7 @@ from pystray import Icon, MenuItem, Menu
 import os
 import json        #导入必要库
 
-version = "beta-v0.0.9"
+version = "v0.1.0"
 if_first_run = True
 if_quit_judge = -1
 time_date = "0"
@@ -17,14 +17,16 @@ ss_address = R".\screenshot"
 ss_max_amount = 100
 ss_quality = 1
 ss_shotgap = 30*1000
-default_password = "1"
-default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1}
+default_password = "potato"
+password_key = default_password
+default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
 default_hide = False
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
 history = {}
 if_cc_conduct = False
 cc_timer = None
+admin_mode = False
 
 class oIcon:  #程序托盘图标
     def __init__(self, master):
@@ -212,8 +214,9 @@ def password(event_f):  # 用于密码确认
     global default_password, root
     
     def password_check():  # 确认密码是否正确，如果是则执行对应操作
+        global admin_mode
         try:
-            if shur1.get() == default_password:
+            if shur1.get() == default_password or admin_mode:
                 if event_f == 0:
                     if not(if_quit_judge):
                         icon.tray_icon.stop()
@@ -231,7 +234,8 @@ def password(event_f):  # 用于密码确认
                     cc_window()
                     root3.destroy()
             elif shur1.get() == 'admin':
-                print('admin')
+                admin_mode = True
+                root3.destroy()
             else:
                 kww.show()
         except Exception as e:
@@ -253,7 +257,7 @@ def password(event_f):  # 用于密码确认
     bto3.pack(side='bottom', pady=10)
 
 def config_read_json(): #用于读取配置文件
-    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge
+    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
     if os.path.exists('config.json'): #读取本地config
         try:
             with open('.\\config.json', 'r') as file:
@@ -271,6 +275,7 @@ def config_read_json(): #用于读取配置文件
         ss_quality = config['ss_quality']
         ss_shotgap = config['ss_shotgap']  
         if_quit_judge = config['if_quit_judge'] #从config中获取并定义变量
+        password_key = config['password_key']
     except:
         config = default_config
 
@@ -300,6 +305,36 @@ def config_write_json():  #用于将config中数值以json格式写入本地
 
 
 def ss_window():  #显示截屏配置界面
+    class PasswordCange:  #用于修改密码
+        def __init__(self):
+            self.root1 = tk.Toplevel(root5)
+            self.root1.title('修改密码')
+            self.root1.geometry('600x400')
+            self.root1.configure(bg='white')
+            self.root1.resizable(False, False)
+
+            self.root1_lab = tk.Label(self.root1,  text='请输入密码', font=('微软雅黑', 20), fg="#000000", bg='white')
+            self.root1_ety = tk.Entry(self.root1, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left')
+            self.root1_lab.pack(pady=5)
+            self.root1_ety.pack(pady=5)
+
+            self.root2 = tk.Toplevel(root5)
+            self.root2.title('修改密码')
+            self.root2.geometry('600x400')
+            self.root2.configure(bg='white')
+            self.root2.resizable(False, False)
+
+            self.root1.withdraw()
+            self.root2.withdraw()
+
+        def root1_show(self):
+            self.root1.withdraw()
+            self.root1.deiconify()
+
+        def root2_show(self):
+            self.root2.withdraw()
+            self.root2.deiconify()
+            
     def config_save():  #用于关闭时将修改后的数值写入config
         config['ss_address'] = ss_ads_pic.address_get()
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
@@ -370,6 +405,11 @@ def ss_window():  #显示截屏配置界面
 
     ss_ads_pic = moretk.AddressInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_address=ss_address, bg="white")
     ss_ads_pic.pack(pady=10)
+
+    pwdk_c_root = PasswordCange()
+    pwdk_c_bto = tk.Button(root5, bd=2, height=1, width=10, font=('微软雅黑',9), bg='grey', fg='white', text='修改密码', command=pwdk_c_root.root1_show())
+    pwdk_c_bto.pack(pady=10)
+    pwdk_c_root.root1.withdraw()
 
     ss_quitway_frame = tk.Frame(root5, bg="white")
     ss_quitway_lab = tk.Label(root5, text='  当退出时，软件将：',font=('微软雅黑', 14),fg="#000000", bg='white')
@@ -512,6 +552,7 @@ root.title(f'健康上网{version}')
 root.geometry('662x400')
 root.configure(bg='white')
 root.resizable(False, False)
+root.iconphoto(False, tk.PhotoImage(file='icon.png'))
 
 lab1_var = tk.StringVar()
 lab1_var.set('None')
@@ -520,11 +561,11 @@ lab1 = tk.Label(root, textvariable=lab1_var, font=('微软雅黑', 14), fg="#000
 lab1.place(x=331, y=175, anchor='center')
 
 bto1 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='历史',command=lambda : password(1))
-bto1.place(x=562, y=30, anchor='center')
+bto1.place(x=557, y=35, anchor='center')
 bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='设置',command=lambda : password(2))
-bto4.place(x=100, y=30, anchor='center')
+bto4.place(x=105, y=35, anchor='center')
 bto_cc = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时关机',command=lambda : password(3))
-bto_cc.place(x=100, y=370, anchor='center')
+bto_cc.place(x=105, y=365, anchor='center')
 
 icon = oIcon(root)
 icon.tray_icon.run_detached()

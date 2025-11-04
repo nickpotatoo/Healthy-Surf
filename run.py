@@ -2,6 +2,7 @@ import time
 import os
 import threading
 import subprocess
+import main
 
 class Circuit:
     def __init__(self):
@@ -21,7 +22,6 @@ class Circuit:
                         continue
                     elif text and text[0] == 'b':
                         self.result = float(text[1:])
-                        print(self.result)
                     elif text and text[0] == 'd':
                         break
                     else:
