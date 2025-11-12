@@ -177,29 +177,6 @@ class TextComboBox(tk.Frame):   #带有文字的combobox
     def bind(self, *args, **kwargs):  #同上
         self.combobox.bind(*args, **kwargs)
 
-class KeyWrong(tk.Toplevel):
-    """密码错误界面，默认隐藏，.show()方法显示"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.title('错误')
-        self.geometry('400x100')
-        self.configure(bg='white')
-        self.resizable(False, False)
-
-        self.label = tk.Label(self, text='密码错误',font=('微软雅黑', 14),fg="#000000", bg='white')
-        self.label.pack(pady=30)
-
-        self.withdraw()
-
-    def show(self):
-        if self.state() != 'withdrawn':
-            self.withdraw()
-            self.deiconify()
-        else:
-            self.deiconify()
-        self.lift()
-
 class TimeSpin(tk.Frame):
     def __init__(self, master, values, amount=1, width=80, text='', font_l="TkDefaultFont", font_b="TkDefaultFont", bg='white', text_side:Literal['right', 'left', 'top', 'bottom']='right', default_index:int=None, *args, **kwargs):
         super().__init__(master, bg=bg, *args, **kwargs)
@@ -440,6 +417,51 @@ class Timer:
             self.master.after_cancel(self._tkafter)
             self._tkafter = None
 
+class NoticeWindow(tk.Toplevel):
+    """提醒界面"""
+    def __init__(self, master = None, _title = None, text="", btext="确认", textvariable:tk.StringVar=None, font_l="TkDefaultFont", font_b="TkDefaultFont", command=None, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
+        self.master = master
+        self._title = _title
+        self.text = text
+        self.btext = btext
+        self.textvariable = textvariable
+        self.font_l = font_l
+        self.font_b = font_b
+        self.command = command
+
+        if text and textvariable:  #若两种文本同时输入，报错且以text输入值为准
+            textvariable = None
+            raise ValueError('冲突！输入了多种文本！')
+        elif textvariable:  #若textvariable类型错误，则使用text的默认值，即''
+            if not isinstance(self.textvariable, tk.StringVar):
+                raise TypeError("textvariable 必须是 tk.StringVar 类型")
+
+        self.title(self._title)
+        self.geometry('300x100')
+        self.resizable(False, False)
+        self.withdraw()
+
+        if self.textvariable:
+            self.label = tk.Label(self, textvariable=self.textvariable, font=self.font_l,fg="#000000")
+        else:
+            self.label = tk.Label(self, text=self.text, font=self.font_l,fg="#000000")
+
+        self.bto = tk.Button(self, text=self.btext, width=10, bg='grey', fg='white', bd=2, font=self.font_b, command=self.command)
+        self.bind("<Return>", lambda event : self.command())
+
+        self.label.pack(pady=5)
+        self.bto.pack(pady=5)
+
+    def show(self):
+        if self.state() != 'withdrawn':
+            self.withdraw()
+            self.deiconify()
+        else:
+            self.deiconify()
+        self.lift()
+
 if __name__ == '__main__':
     def a(event):
         global textbox
@@ -447,6 +469,9 @@ if __name__ == '__main__':
 
     def show_timer_done():
         lab_timer.config(text="计时结束！")
+
+    def confirm():
+        noticewindow.withdraw()
 
     root = tk.Tk()
     root.geometry("500x600")
@@ -468,15 +493,6 @@ if __name__ == '__main__':
     textbox.pack()
     textbox.bind("<Button-1>", a)
 
-    wrong = KeyWrong(root)
-    wrong.show()
-    wrong.withdraw()
-
-    bto = tk.Button(root, text='Yes', command=wrong.show)
-    bto2 = tk.Button(root, text='No', command=wrong.withdraw)
-    bto.pack()
-    bto2.pack()
-
     font_width_deal('123', lab2)
 
     abcdefg = []
@@ -495,5 +511,8 @@ if __name__ == '__main__':
 
     timer = Timer(root, time=10, func=show_timer_done, judge=True)
     timer.cancel()
+
+    noticewindow = NoticeWindow(root, _title="密码错误", text="密码错误", font_l=("微软雅黑", 15), font_b=("微软雅黑", 12), command=confirm)
+    noticewindow.show()
 
     root.mainloop()
