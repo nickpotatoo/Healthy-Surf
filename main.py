@@ -1,6 +1,7 @@
 import tkinter as tk
 import screenshot
 import moretk
+import encryption
 from datetime import datetime
 import time
 from PIL import Image
@@ -9,6 +10,7 @@ import os
 import json        #导入必要库
 
 version = "v0.1.0"
+SECRET_KEY = "potato_love"
 if_first_run = True
 if_quit_judge = -1
 time_date = "0"
@@ -19,7 +21,8 @@ ss_quality = 1
 ss_shotgap = 30*1000
 default_password = "potato"
 password_key = default_password
-default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': '1'}
+default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
+config = default_config
 default_hide = False
 now = datetime.now()
 time_date = int(now.strftime('%Y%m%d'))
@@ -168,7 +171,7 @@ def if_quit():  #询问推出选项
         if qiw_cb_var.get():  #选了不再提问，则储存至config
             if_quit_judge = 1
             config['if_quit_judge'] = 1
-            config_write_json()
+            config_write_json_encryption()
         password(0)
         n.destroy()
 
@@ -177,7 +180,7 @@ def if_quit():  #询问推出选项
         if qiw_cb_var.get():  #选了不再提问，则储存至config
             if_quit_judge = 0
             config['if_quit_judge'] = 0
-            config_write_json()
+            config_write_json_encryption()
         for widget in root.winfo_children():  #清理所有打开的界面
                 if isinstance(widget, tk.Toplevel):
                     widget.destroy()
@@ -283,9 +286,34 @@ def config_read_json(): #用于读取配置文件
     except:
         config = default_config
 
+def config_read_json_encryption(): #用于读取加密的配置文件
+    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
+    
+    try:
+        config = encryption.decrypt_file("config.json", SECRET_KEY)
+    except:
+        config = default_config
+
+    if admin_mode:
+        with open('.\\config_decrypt.json', 'w', newline='') as file:
+            json.dump(config, file, indent=4)
+
+    try:
+        ss_address = config['ss_address']
+        ss_max_amount = config['ss_max_amount']
+        ss_quality = config['ss_quality']
+        ss_shotgap = config['ss_shotgap']  
+        if_quit_judge = config['if_quit_judge'] #从config中获取并定义变量
+        password_key = config['password_key']
+    except:
+        config = default_config
+
 def get_screen_init():
     global screenshoter
-    config_read_json()  #仅启动时读取config
+    if os.path.exists("config.json"):
+        config_read_json_encryption()  #仅启动时读取config
+    else:
+        config_write_json_encryption()
     screenshoter = screenshot.Screenshoter(ss_address, ss_max_amount, ss_quality)
 
 def get_screen():  #主程序中使用截屏
@@ -307,6 +335,9 @@ def config_write_json():  #用于将config中数值以json格式写入本地
                 json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
                 config_write_json()
 
+def config_write_json_encryption():   #用于将config中数值以加密的json格式写入本地
+    global config
+    encryption.encrypt_file(config, "config.json", SECRET_KEY)
 
 def config_window():  #显示配置界面
     class PasswordCange:  #用于修改密码
@@ -408,7 +439,7 @@ def config_window():  #显示配置界面
             lab_is = tk.Label(root6, text='是否保存', font=('微软雅黑', 20), fg="#000000", bg='white')
             lab_is.pack(side='top', pady=20)
 
-            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json(), config_read_json(), root6.destroy(), root5.destroy()))
+            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json_encryption(), config_read_json_encryption(), root6.destroy(), root5.destroy()))
             bto_is_n = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='取消',command=lambda : (root6.destroy(), root5.destroy()))
             bto_is_y.pack(side='left', padx=60)
             bto_is_n.pack(side='right', padx=60)
@@ -480,7 +511,7 @@ def config_window():  #显示配置界面
     ss_quitway_frame.pack(pady=5)
 
     ss_bto_frame = tk.Frame(root5, bg="white")
-    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json(), config_read_json(), root5.destroy()))
+    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json_encryption(), config_read_json_encryption(), root5.destroy()))
     ss_bto_n = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消',command=root5.destroy)
     ss_bto_y.pack(side="left", padx=5)
     ss_bto_n.pack(side="right", padx=5)
@@ -498,7 +529,7 @@ def config_window():  #显示配置界面
 
     root5.protocol('WM_DELETE_WINDOW', if_save)  #关闭时显示是否保存界面（若发生修改）
 
-def cc_window():
+def cc_window():  #定时关机功能 
     def cfm():
         cfmw.show()
         cch_result = cch.get_selected()
