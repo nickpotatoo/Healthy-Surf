@@ -217,23 +217,23 @@ def password(event_f):  # 用于密码确认
         global admin_mode
         try:
             if shur1.get() == password_key or admin_mode:
-                if event_f == 0:
+                if event_f == 0:   #程序退出
                     if not(if_quit_judge):
                         icon.tray_icon.stop()
                     safe_write("monitor", "d")
                     root3.destroy()
                     icon.tray_icon.stop()
                     root.destroy()
-                elif event_f == 1:
+                elif event_f == 1:  #显示历史界面
                     history_check()
-                    root3.destroy()
-                elif event_f == 2:
+                    root3.destroy()  
+                elif event_f == 2:   #显示配置界面
                     config_window()
                     root3.destroy()
-                elif event_f ==3:
+                elif event_f ==3:  #显示定时关机界面
                     cc_window()
                     root3.destroy()
-            elif shur1.get() == 'admin':
+            elif shur1.get() == 'admin':  #管理员模式
                 admin_mode = True
                 root3.destroy()
             else:
@@ -256,6 +256,9 @@ def password(event_f):  # 用于密码确认
     bto3.pack(side='bottom', pady=10)
 
     kww = moretk.NoticeWindow(root3, _title="密码错误", text="密码错误", font_l=("微软雅黑", 15), font_b=("微软雅黑", 12), command=lambda : kww.withdraw())  # 用于生成密码错误界面，默认隐藏
+
+    if admin_mode:  #管理员模式，跳过密码检查
+        password_check()
 
 def config_read_json(): #用于读取配置文件
     global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
