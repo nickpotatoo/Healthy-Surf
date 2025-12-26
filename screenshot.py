@@ -4,15 +4,15 @@ import datetime
 from PIL import ImageGrab
 
 class Screenshoter:
-    def __init__(self, address:str, max_amount:int, quality:int):
+    def __init__(self, path:str, max_amount:int, quality:int):
         self.picture_list = []
         self.picture_cache = None
-        self.address = address
+        self.path = path
         self.max_amount = max_amount
         self.quality = quality
 
-        if not os.path.exists(self.address):  # 初始化，创建文件夹
-            os.mkdir(self.address)
+        if not os.path.exists(self.path):  # 初始化，创建文件夹
+            os.mkdir(self.path)
 
     def screenshot(self):  # 截屏
         now = datetime.datetime.now()
@@ -20,7 +20,7 @@ class Screenshoter:
         try:
             self.image = ImageGrab.grab()
             self.image = self.image.resize(self._picture_quality_deal())
-            self.image.save('%s\\hssp_%s.png' % (self.address, time))
+            self.image.save('%s\\hssp_%s.png' % (self.path, time))
             self.picture_cache = '%s.png' % time
             return True
         except Exception as e:
@@ -67,13 +67,13 @@ class Screenshoter:
     def picture_clean(self):  # 计算并删除多余图片
         i = 0
         self.picture_list = []
-        for n in os.listdir(self.address):
+        for n in os.listdir(self.path):
             if n[:5] == 'hssp_':
                 self.picture_list.append(n)
         self.picture_list.sort()
         i = len(self.picture_list)
         while i >= self.max_amount + 1:
-            os.remove('%s\\%s' % (self.address, self.picture_list[0]))
+            os.remove('%s\\%s' % (self.path, self.picture_list[0]))
             self.picture_list.remove(self.picture_list[0])
             i -= 1
         return i

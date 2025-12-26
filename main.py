@@ -15,13 +15,13 @@ if_first_run = True
 if_quit_judge = -1
 time_date = "0"
 total_time = 0
-ss_address = R".\screenshot"
+ss_path = R".\screenshot"
 ss_max_amount = 100
 ss_quality = 1
 ss_shotgap = 30*1000
 default_password = "potato"
 password_key = default_password
-default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
+default_config = {'ss_path':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
 config = default_config
 default_hide = False
 now = datetime.now()
@@ -271,7 +271,7 @@ def password(event_f):  # 用于密码确认
         password_check()
 
 def config_read_json(): #用于读取配置文件
-    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
+    global config, ss_path, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
     if os.path.exists('config.json'): #读取本地config
         try:
             with open('.\\config.json', 'r') as file:
@@ -284,7 +284,7 @@ def config_read_json(): #用于读取配置文件
             config = default_config
             json.dump(config, file, indent=4)
     try:
-        ss_address = config['ss_address']
+        ss_path = config['ss_path']
         ss_max_amount = config['ss_max_amount']
         ss_quality = config['ss_quality']
         ss_shotgap = config['ss_shotgap']  
@@ -294,7 +294,7 @@ def config_read_json(): #用于读取配置文件
         config = default_config
 
 def config_read_json_encryption(): #用于读取加密的配置文件
-    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
+    global config, ss_path, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
     
     try:
         config = encryption.decrypt_file("config.json", SECRET_KEY)
@@ -306,7 +306,7 @@ def config_read_json_encryption(): #用于读取加密的配置文件
             json.dump(config, file, indent=4)
 
     try:
-        ss_address = config['ss_address']
+        ss_path = config['ss_path']
         ss_max_amount = config['ss_max_amount']
         ss_quality = config['ss_quality']
         ss_shotgap = config['ss_shotgap']  
@@ -321,7 +321,7 @@ def get_screen_init():
         config_read_json_encryption()  #仅启动时读取config
     else:
         config_write_json_encryption()
-    screenshoter = screenshot.Screenshoter(ss_address, ss_max_amount, ss_quality)
+    screenshoter = screenshot.Screenshoter(ss_path, ss_max_amount, ss_quality)
 
 def get_screen():  #主程序中使用截屏
     screenshoter.screenshot()
@@ -423,7 +423,7 @@ def config_window():  #显示配置界面
 
             
     def config_save():  #用于关闭时将修改后的数值写入config
-        config['ss_address'] = ss_ads_pic.address_get()
+        config['ss_path'] = ss_ads_pic.path_get()
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
         config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
         config['ss_shotgap'] = ss_cbb_gap_list_r[ss_cbb_gap.current()]
@@ -492,7 +492,7 @@ def config_window():  #显示配置界面
     ss_cbb_qty.current(next(i for i, v in enumerate(ss_cbb_qty_list_r) if v == config["ss_quality"]))
     ss_cbb_qty.pack(pady=10)
 
-    ss_ads_pic = moretk.AddressInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_address=ss_address, bg="white")
+    ss_ads_pic = moretk.PathInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_path=ss_path, bg="white")
     ss_ads_pic.pack(pady=10)
 
     pwdk_c_root = PasswordCange()
@@ -525,7 +525,7 @@ def config_window():  #显示配置界面
     ss_bto_n.pack(side="right", padx=5)
     ss_bto_frame.pack(pady=10)
 
-    tp = moretk.ToolTip(ss_ads_pic, text=ss_address)
+    tp = moretk.ToolTip(ss_ads_pic, text=ss_path)
 
     ss_cbb_gap.bind("<Button-1>",lambda event : change())  #用于确认是否发生修改
     ss_cbb_ma.bind("<Button-1>", lambda event : change())
@@ -645,7 +645,7 @@ def ssw_window():  #截图浏览界面
         ssw.refresh()
         ssw.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
     
-    ssw = moretk.ScreenShotWindow(root, config["ss_address"])
+    ssw = moretk.ScreenShotWindow(root, config["ss_path"])
     ssw.show()
 
     refresh_circulate()
