@@ -70,7 +70,7 @@ class Screenshoter:
         for n in os.listdir(self.address):
             if n[:5] == 'hssp_':
                 self.picture_list.append(n)
-            self.picture_list.sort()
+        self.picture_list.sort()
         i = len(self.picture_list)
         while i >= self.max_amount + 1:
             os.remove('%s\\%s' % (self.address, self.picture_list[0]))

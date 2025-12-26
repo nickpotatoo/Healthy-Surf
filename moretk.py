@@ -3,6 +3,8 @@ from tkinter import font as tkfont
 from tkinter import filedialog
 from tkinter import ttk
 from typing import Literal
+import os
+from PIL import Image, ImageTk
 
 def font_width_deal(address_f, label):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址，其中label需要为要处理的tkinter.label实例
         try:
@@ -202,7 +204,6 @@ class TimeSpin(tk.Frame):
 
         self.canvas = tk.Canvas(self, width=self.width, bg=self.bg, height=self.height)
         
-
         self.canvas.bind("<MouseWheel>", self.on_mousewheel)# 绑定滚轮
         self.canvas.bind("<B1-Motion>", self.on_mousedrag)# 绑定鼠标拖拽
         self.canvas.bind("<Button-1>", self.on_mouse1click)# 绑定鼠标点击
@@ -462,57 +463,146 @@ class NoticeWindow(tk.Toplevel):
             self.deiconify()
         self.lift()
 
+class ScreenShotWindow(tk.Toplevel):
+    """浏览截图界面"""
+    def __init__(self, master=None, path=None, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
+        self.master = master
+        self.path = path
+        self.is_shown = False
+        self.title("截屏浏览")
+        self.geometry("830x500")
+        self.resizable(False, False)
+
+        self.canvas = tk.Canvas(self, bg='white', width=800, height=500)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.image_frame = tk.Frame(self.canvas, bg='white')
+        self.image_frame.bind("<Configure>", lambda event : self.canvas.configure(scrollregion=self.canvas.bbox("all"))) #更新滚动区域
+        self.canvas.create_window((0, 0), window=self.image_frame, anchor='nw')
+
+        self.withdraw() #初始化时隐藏窗口
+
+        self.scrollbar = tk.Scrollbar(self, orient='vertical', bd=2, width=30, command=self.canvas.yview)
+        self.scrollbar.grid(row=0, column=3, sticky='ns')
+
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        #self.image_frame.bind("<MouseWheel>", lambda event : self.canvas.yview_scroll(-int(event.delta/120), "units"))#绑定滚轮滚动
+
+        self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._on_mousewheel))
+        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
+    
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(-int(event.delta/120), "units")
+
+    def show(self):
+        if self.state() != 'withdrawn':
+            self.withdraw() 
+            self.deiconify()
+        else:
+            self.deiconify()
+        self.lift()
+        self.is_shown = True
+        self._load_image()
+
+        for n in self.image_frame.winfo_children():
+            n.destroy()
+
+        r=c=0
+        for n in self.picture_list:
+            label = tk.Label(self.image_frame, image=n)
+            label.grid(row = r, column = c, padx=5, pady=5)
+            c+=1
+            if c == 3:
+                c = 0
+                r += 1
+
+    def refresh(self):
+        if self.is_shown:
+            self._load_image()
+
+            for n in self.image_frame.winfo_children():
+                n.destroy()
+
+            r=c=0
+            for n in self.picture_list:
+                label = tk.Label(self.image_frame, image=n)
+                label.grid(row = r, column = c, padx=5, pady=5)
+                c+=1
+                if c == 3:
+                    c = 0
+                    r += 1
+
+    def _load_image(self):
+        self.picture_list = []
+        for n in os.listdir(self.path):
+            image = Image.open(self.path+"\\"+n)
+            image = image.resize((250, 150))
+            photo = ImageTk.PhotoImage(image)
+            if n[:5] == 'hssp_':
+                self.picture_list.append(photo)
+
+    def withdraw(self):
+        super().withdraw()
+        self.is_shown = False
+
 if __name__ == '__main__':
-    def a(event):
-        global textbox
-        print(textbox.current())
+    # def a(event):
+    #     global textbox
+    #     print(textbox.current())
 
-    def show_timer_done():
-        lab_timer.config(text="计时结束！")
+    # def show_timer_done():
+    #     lab_timer.config(text="计时结束！")
 
-    def confirm():
-        noticewindow.withdraw()
+    # def confirm():
+    #     noticewindow.withdraw()
 
     root = tk.Tk()
     root.geometry("500x600")
 
-    full_text = "这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111"
+    # full_text = "这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111"
 
-    lab2 = tk.Label(root, text=full_text, fg="#FF0000", bg='white', anchor='w', font=("微软雅黑",10), width=50)
-    lab2.pack(fill='x', padx=10, pady=20)
+    # lab2 = tk.Label(root, text=full_text, fg="#FF0000", bg='white', anchor='w', font=("微软雅黑",10), width=50)
+    # lab2.pack(fill='x', padx=10, pady=20)
 
-    condition1 = False
-    for char in full_text:
-        if char == 'T':
-            condition1 = True
+    # condition1 = False
+    # for char in full_text:
+    #    if char == 'T':
+    #         condition1 = True
 
-    test = AddressInputBox(root, button_size=1, default_address=r'这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111')
-    test.pack()
+    # test = AddressInputBox(root, button_size=1, default_address=r'这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111')
+    # test.pack()
 
-    textbox = TextComboBox(root, text='test', values=['a','b','c'], font_l=('微软雅黑', 13), font_c=('微软雅黑', 13))
-    textbox.pack()
-    textbox.bind("<Button-1>", a)
+    # textbox = TextComboBox(root, text='test', values=['a','b','c'], font_l=('微软雅黑', 13), font_c=('微软雅黑', 13))
+    # textbox.pack()
+    # textbox.bind("<Button-1>", a)
 
-    font_width_deal('123', lab2)
+    # font_width_deal('123', lab2)
 
-    abcdefg = []
-    for i in range(0,13):
-        abcdefg.append(i)
-    timespin = TimeSpin(root, values=abcdefg, amount=9, text_side='left', text='abc')
-    timespin.pack()
-    timespin.current(0)
+    # abcdefg = []
+    # for i in range(0,13):
+    #     abcdefg.append(i)
+    # timespin = TimeSpin(root, values=abcdefg, amount=9, text_side='left', text='abc')
+    # timespin.pack()
+    # timespin.current(0)
 
-    cfmw = CfmWindow(root, _title='123', font_l=('微软雅黑', 13), font_b=('微软雅黑', 10))
-    bto3 = tk.Button(root, text='Show', command=cfmw.show)
-    bto3.pack()
+    # cfmw = CfmWindow(root, _title='123', font_l=('微软雅黑', 13), font_b=('微软雅黑', 10))
+    # bto3 = tk.Button(root, text='Show', command=cfmw.show)
+    # bto3.pack()
 
-    lab_timer = tk.Label(root, text="计时中...", fg="blue", font=("微软雅黑", 12))
-    lab_timer.pack(pady=10)
+    # lab_timer = tk.Label(root, text="计时中...", fg="blue", font=("微软雅黑", 12))
+    # lab_timer.pack(pady=10)
 
-    timer = Timer(root, time=10, func=show_timer_done, judge=True)
-    timer.cancel()
+    # timer = Timer(root, time=10, func=show_timer_done, judge=True)
+    # timer.cancel()
 
-    noticewindow = NoticeWindow(root, _title="密码错误", text="密码错误", font_l=("微软雅黑", 15), font_b=("微软雅黑", 12), command=confirm)
-    noticewindow.show()
+    # noticewindow = NoticeWindow(root, _title="密码错误", text="密码错误", font_l=("微软雅黑", 15), font_b=("微软雅黑", 12), command=confirm)
+    # noticewindow.show()
+
+    ssw = ScreenShotWindow(root, path=".\\screenshot")
+    ssw_bto = tk.Button(root, text="Show Screenshot Window", command=lambda : ssw.show())
+    ssw_bto.pack()
 
     root.mainloop()
