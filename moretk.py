@@ -3,22 +3,24 @@ from tkinter import font as tkfont
 from tkinter import filedialog
 from tkinter import ttk
 from typing import Literal
+import os
+from PIL import Image, ImageTk
 
-def font_width_deal(address_f, label):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址，其中label需要为要处理的tkinter.label实例
+def font_width_deal(path_f, label):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址，其中label需要为要处理的tkinter.label实例
         try:
             width = label.winfo_width()
             font = tkfont.Font(font=label.cget("font"))
-            address_c = address_f
-            if font.measure(address_c) <= width:
-                return address_f
+            path_c = path_f
+            if font.measure(path_c) <= width:
+                return path_f
             else:
-                address_f = ''
-                for v in address_c:
-                    if font.measure(address_f + v + '...') > width - 10:
+                path_f = ''
+                for v in path_c:
+                    if font.measure(path_f + v + '...') > width - 10:
                         break
-                    address_f += v
-                address_f += '...'
-                return address_f 
+                    path_f += v
+                path_f += '...'
+                return path_f 
         except:
             print('sth wrong')        
 
@@ -69,8 +71,8 @@ class ToolTip:  #提示框
             self.tip_window.destroy()
             self.tip_window = None
 
-class AddressInputBox(tk.Frame):  #地址输入框
-    def __init__(self, master=None, text='Saving Address', font_r="TkDefaultFont", font_a="TkDefaultFont", default_address='', button_size=1, width_a=50, bg='white', if_omit=True, *args, **kwargs):
+class PathInputBox(tk.Frame):  #地址输入框
+    def __init__(self, master=None, text='Saving Path', font_r="TkDefaultFont", font_a="TkDefaultFont", default_path='', button_size=1, width_a=50, bg='white', if_omit=True, *args, **kwargs):
         super().__init__(master, bg=bg, *args, **kwargs)
 
         self.text = text
@@ -78,26 +80,26 @@ class AddressInputBox(tk.Frame):  #地址输入框
         self.font_r = font_r
         self.font_a = font_a
         self.button_size = button_size
-        self.default_address = default_address
+        self.default_path = default_path
         self.width_a = width_a
         self.bg = bg
         self.if_omit = if_omit
-        self.__AddressChange_bind = None
+        self.__PathChange_bind = None
 
-        self.address = self.default_address
-        self.address_v = tk.StringVar()
-        self.address_v.set(self.address)
-        self.address_omit = tk.StringVar()
+        self.path = self.default_path
+        self.path_v = tk.StringVar()
+        self.path_v.set(self.path)
+        self.path_omit = tk.StringVar()
 
         self.label_r = tk.Label(self, text=self.text, font=self.font_r, bg=self.bg)
         self.label_r.pack(side='left')
 
-        self.label_a = tk.Label(self, textvariable=self.address_omit, font=self.font_a, fg="#000000", bg=self.bg, relief='solid', borderwidth=0.5, width=self.width_a, anchor='w')
+        self.label_a = tk.Label(self, textvariable=self.path_omit, font=self.font_a, fg="#000000", bg=self.bg, relief='solid', borderwidth=0.5, width=self.width_a, anchor='w')
         self.label_a.pack(side='left')
 
-        self.label_a.bind("<Configure>", lambda event : self.__ads_set(ads_get=None))  
+        self.label_a.bind("<Configure>", lambda event : self.__path_set(path_get=None))  
 
-        self.button = tk.Button(self,bd=1,height=1,width=2,font=('微软雅黑', 7*self.button_size),bg='grey',fg='white',text='▼',command=self.__bto_adsca_deal)
+        self.button = tk.Button(self,bd=1,height=1,width=2,font=('微软雅黑', 7*self.button_size),bg='grey',fg='white',text='▼',command=self.__bto_pathca_deal)
         self.button.pack(side='right')
 
     def bind(self, action:str=..., func=None):  #重写bind方法
@@ -105,48 +107,48 @@ class AddressInputBox(tk.Frame):  #地址输入框
             self.label_a.bind("<Enter>", func)
         elif action == "<Leave>":
             self.label_a.bind("<Leave>", func)
-        elif action == "<AddressChange>":
-            self.__AddressChange_bind = func
+        elif action == "<PathChange>":
+            self.__PathChange_bind = func
 
     def winfo_rootx(self):   #重写winfo_rootx方法，返回label_a的x坐标
         return self.label_a.winfo_rootx()
     
-    def address_get(self):  #获取地址（仅当下）
-        return self.address
+    def path_get(self):  #获取地址（仅当下）
+        return self.path
     
-    def address_var_get(self):  #获取为tk.Stringvar()实例的地址
-        return self.address_v
+    def path_var_get(self):  #获取为tk.Stringvar()实例的地址
+        return self.path_v
     
     def set(self, text=""):
-        self.address = text
-        self.address_v.set(text)
-        self.address_omit.set(font_width_deal(text, self.label_a))
+        self.path = text
+        self.path_v.set(text)
+        self.path_omit.set(font_width_deal(text, self.label_a))
 
-    def __bto_adsca_deal(self):  #仅用于获取地址界面
-        if self.__AddressChange_bind:
-            self.__AddressChange_bind("this is event awa")
-        ads_get =  None
+    def __bto_pathca_deal(self):  #仅用于获取地址界面
+        if self.__PathChange_bind:
+            self.__PathChange_bind("this is event awa")
+        path_get =  None
         save_path = filedialog.askdirectory()
         if save_path:
-            ads_get = save_path
-            self.__ads_set(ads_get=ads_get)
+            path_get = save_path
+            self.__path_set(path_get=path_get)
         else:
             pass 
 
-    def __ads_set(self, ads_get):  #用于为各个地址属性赋值最终self.address与self.address_v即为地址，ads_get=None时用于初始化
-        if not ads_get:
+    def __path_set(self, path_get):  #用于为各个地址属性赋值最终self.path与self.path_v即为地址，path_get=None时用于初始化
+        if not path_get:
             if self.if_omit:
-                self.address_omit.set(font_width_deal(self.address, self.label_a))
+                self.path_omit.set(font_width_deal(self.path, self.label_a))
             else:
-                self.address_omit.set(self.address)
+                self.path_omit.set(self.path)
         else:
             if self.if_omit:
-                address_c = font_width_deal(ads_get, self.label_a)
+                path_c = font_width_deal(path_get, self.label_a)
             else:
-                address_c = self.address
-                self.address_v.set(ads_get)
-                self.address = ads_get
-            self.address_omit.set(address_c)
+                path_c = self.path
+                self.path_v.set(path_get)
+                self.path = path_get
+            self.path_omit.set(path_c)
 
 class TextComboBox(tk.Frame):   #带有文字的combobox
     def __init__(self, master=None, text='', values=[], default_index=0, width=10, font_l="TkDefaultFont", font_c="TkDefaultFont", bg="white", *args, **kwargs):
@@ -202,7 +204,6 @@ class TimeSpin(tk.Frame):
 
         self.canvas = tk.Canvas(self, width=self.width, bg=self.bg, height=self.height)
         
-
         self.canvas.bind("<MouseWheel>", self.on_mousewheel)# 绑定滚轮
         self.canvas.bind("<B1-Motion>", self.on_mousedrag)# 绑定鼠标拖拽
         self.canvas.bind("<Button-1>", self.on_mouse1click)# 绑定鼠标点击
@@ -462,57 +463,144 @@ class NoticeWindow(tk.Toplevel):
             self.deiconify()
         self.lift()
 
+class ScreenShotWindow(tk.Toplevel):
+    """浏览截图界面"""
+    def __init__(self, master=None, path=None, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+
+        self.master = master
+        self.path = path
+        self.is_shown = False
+        self.title("截屏浏览")
+        self.geometry("830x500")
+        self.resizable(False, False)
+
+        self.canvas = tk.Canvas(self, bg='white', width=800, height=500)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.image_frame = tk.Frame(self.canvas, bg='white')
+        self.image_frame.bind("<Configure>", lambda event : self.canvas.configure(scrollregion=self.canvas.bbox("all"))) #更新滚动区域
+        self.canvas.create_window((0, 0), window=self.image_frame, anchor='nw')
+
+        self.withdraw() #初始化时隐藏窗口
+
+        self.scrollbar = tk.Scrollbar(self, orient='vertical', bd=2, width=30, command=self.canvas.yview)
+        self.scrollbar.grid(row=0, column=3, sticky='ns')
+
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)) #绑定滚轮滚动
+        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
+    
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(-int(event.delta/120), "units")
+
+    def show(self):
+        if self.state() != 'withdrawn':
+            self.withdraw() 
+            self.deiconify()
+        else:
+            self.deiconify()
+        self.lift()
+        self.is_shown = True
+        self._load_image()
+
+        for n in self.image_frame.winfo_children():
+            n.destroy()
+
+        r=c=0
+        for n in self.picture_list:
+            label = tk.Label(self.image_frame, image=n)
+            label.grid(row = r, column = c, padx=5, pady=5)
+            c+=1
+            if c == 3:
+                c = 0
+                r += 1
+
+    def refresh(self):
+        if self.is_shown:
+            self._load_image()
+
+            for n in self.image_frame.winfo_children():
+                n.destroy()
+
+            r=c=0
+            for n in self.picture_list:
+                label = tk.Label(self.image_frame, image=n)
+                label.grid(row = r, column = c, padx=5, pady=5)
+                c+=1
+                if c == 3:
+                    c = 0
+                    r += 1
+
+    def _load_image(self):
+        self.picture_list = []
+        for n in os.listdir(self.path):
+            image = Image.open(self.path+"\\"+n)
+            image = image.resize((250, 150))
+            photo = ImageTk.PhotoImage(image)
+            if n[:5] == 'hssp_':
+                self.picture_list.append(photo)
+
+    def withdraw(self):
+        super().withdraw()
+        self.is_shown = False
+
 if __name__ == '__main__':
-    def a(event):
-        global textbox
-        print(textbox.current())
+    # def a(event):
+    #     global textbox
+    #     print(textbox.current())
 
-    def show_timer_done():
-        lab_timer.config(text="计时结束！")
+    # def show_timer_done():
+    #     lab_timer.config(text="计时结束！")
 
-    def confirm():
-        noticewindow.withdraw()
+    # def confirm():
+    #     noticewindow.withdraw()
 
     root = tk.Tk()
     root.geometry("500x600")
 
-    full_text = "这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111"
+    # full_text = "这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111"
 
-    lab2 = tk.Label(root, text=full_text, fg="#FF0000", bg='white', anchor='w', font=("微软雅黑",10), width=50)
-    lab2.pack(fill='x', padx=10, pady=20)
+    # lab2 = tk.Label(root, text=full_text, fg="#FF0000", bg='white', anchor='w', font=("微软雅黑",10), width=50)
+    # lab2.pack(fill='x', padx=10, pady=20)
 
-    condition1 = False
-    for char in full_text:
-        if char == 'T':
-            condition1 = True
+    # condition1 = False
+    # for char in full_text:
+    #    if char == 'T':
+    #         condition1 = True
 
-    test = AddressInputBox(root, button_size=1, default_address=r'这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111')
-    test.pack()
+    # test = AddressInputBox(root, button_size=1, default_address=r'这是一个非常非常长的路径示例，用于显示ooltip和省略号效果11111111111111111111111111111111111111111111')
+    # test.pack()
 
-    textbox = TextComboBox(root, text='test', values=['a','b','c'], font_l=('微软雅黑', 13), font_c=('微软雅黑', 13))
-    textbox.pack()
-    textbox.bind("<Button-1>", a)
+    # textbox = TextComboBox(root, text='test', values=['a','b','c'], font_l=('微软雅黑', 13), font_c=('微软雅黑', 13))
+    # textbox.pack()
+    # textbox.bind("<Button-1>", a)
 
-    font_width_deal('123', lab2)
+    # font_width_deal('123', lab2)
 
-    abcdefg = []
-    for i in range(0,13):
-        abcdefg.append(i)
-    timespin = TimeSpin(root, values=abcdefg, amount=9, text_side='left', text='abc')
-    timespin.pack()
-    timespin.current(0)
+    # abcdefg = []
+    # for i in range(0,13):
+    #     abcdefg.append(i)
+    # timespin = TimeSpin(root, values=abcdefg, amount=9, text_side='left', text='abc')
+    # timespin.pack()
+    # timespin.current(0)
 
-    cfmw = CfmWindow(root, _title='123', font_l=('微软雅黑', 13), font_b=('微软雅黑', 10))
-    bto3 = tk.Button(root, text='Show', command=cfmw.show)
-    bto3.pack()
+    # cfmw = CfmWindow(root, _title='123', font_l=('微软雅黑', 13), font_b=('微软雅黑', 10))
+    # bto3 = tk.Button(root, text='Show', command=cfmw.show)
+    # bto3.pack()
 
-    lab_timer = tk.Label(root, text="计时中...", fg="blue", font=("微软雅黑", 12))
-    lab_timer.pack(pady=10)
+    # lab_timer = tk.Label(root, text="计时中...", fg="blue", font=("微软雅黑", 12))
+    # lab_timer.pack(pady=10)
 
-    timer = Timer(root, time=10, func=show_timer_done, judge=True)
-    timer.cancel()
+    # timer = Timer(root, time=10, func=show_timer_done, judge=True)
+    # timer.cancel()
 
-    noticewindow = NoticeWindow(root, _title="密码错误", text="密码错误", font_l=("微软雅黑", 15), font_b=("微软雅黑", 12), command=confirm)
-    noticewindow.show()
+    # noticewindow = NoticeWindow(root, _title="密码错误", text="密码错误", font_l=("微软雅黑", 15), font_b=("微软雅黑", 12), command=confirm)
+    # noticewindow.show()
+
+    ssw = ScreenShotWindow(root, path=".\\screenshot")
+    ssw_bto = tk.Button(root, text="Show Screenshot Window", command=lambda : ssw.show())
+    ssw_bto.pack()
 
     root.mainloop()

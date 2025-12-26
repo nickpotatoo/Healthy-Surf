@@ -15,13 +15,13 @@ if_first_run = True
 if_quit_judge = -1
 time_date = "0"
 total_time = 0
-ss_address = R".\screenshot"
+ss_path = R".\screenshot"
 ss_max_amount = 100
 ss_quality = 1
 ss_shotgap = 30*1000
 default_password = "potato"
 password_key = default_password
-default_config = {'ss_address':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
+default_config = {'ss_path':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
 config = default_config
 default_hide = False
 now = datetime.now()
@@ -115,6 +115,8 @@ def history_check():   #用于图形界面查询历史
     root2.configure(bg='white')
     root2.resizable(False, False)
     hty_key = {}
+
+    root2.lift()
 
     def htylist_refresh(if_circulate):  #对查询界面5秒一刷新
         nonlocal hty_key
@@ -236,6 +238,9 @@ def password(event_f):  # 用于密码确认
                 elif event_f ==3:  #显示定时关机界面
                     cc_window()
                     root3.destroy()
+                elif event_f ==4:  #显示截图浏览界面
+                    ssw_window()
+                    root3.destroy()
             elif shur1.get() == 'admin':  #管理员模式
                 admin_mode = True
                 root3.destroy()
@@ -260,11 +265,13 @@ def password(event_f):  # 用于密码确认
 
     kww = moretk.NoticeWindow(root3, _title="密码错误", text="密码错误", font_l=("微软雅黑", 15), font_b=("微软雅黑", 12), command=lambda : kww.withdraw())  # 用于生成密码错误界面，默认隐藏
 
+    root3.lift()
+
     if admin_mode:  #管理员模式，跳过密码检查
         password_check()
 
 def config_read_json(): #用于读取配置文件
-    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
+    global config, ss_path, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
     if os.path.exists('config.json'): #读取本地config
         try:
             with open('.\\config.json', 'r') as file:
@@ -277,7 +284,7 @@ def config_read_json(): #用于读取配置文件
             config = default_config
             json.dump(config, file, indent=4)
     try:
-        ss_address = config['ss_address']
+        ss_path = config['ss_path']
         ss_max_amount = config['ss_max_amount']
         ss_quality = config['ss_quality']
         ss_shotgap = config['ss_shotgap']  
@@ -287,7 +294,7 @@ def config_read_json(): #用于读取配置文件
         config = default_config
 
 def config_read_json_encryption(): #用于读取加密的配置文件
-    global config, ss_address, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
+    global config, ss_path, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
     
     try:
         config = encryption.decrypt_file("config.json", SECRET_KEY)
@@ -299,7 +306,7 @@ def config_read_json_encryption(): #用于读取加密的配置文件
             json.dump(config, file, indent=4)
 
     try:
-        ss_address = config['ss_address']
+        ss_path = config['ss_path']
         ss_max_amount = config['ss_max_amount']
         ss_quality = config['ss_quality']
         ss_shotgap = config['ss_shotgap']  
@@ -314,7 +321,7 @@ def get_screen_init():
         config_read_json_encryption()  #仅启动时读取config
     else:
         config_write_json_encryption()
-    screenshoter = screenshot.Screenshoter(ss_address, ss_max_amount, ss_quality)
+    screenshoter = screenshot.Screenshoter(ss_path, ss_max_amount, ss_quality)
 
 def get_screen():  #主程序中使用截屏
     screenshoter.screenshot()
@@ -347,35 +354,36 @@ def config_window():  #显示配置界面
             self.root.geometry('500x350')
             self.root.configure(bg='white')
             self.root.resizable(False, False)
+            self.root.lift()
 
-            self.root1_lab1 = tk.Label(self.root,  text='请输入原密码', font=('微软雅黑', 18), fg="#000000", bg='white')
-            self.root1_ety1 = tk.Entry(self.root, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
-            self.root1_ety1.bind("<Return>", lambda event : self.confirm())
+            self.root_lab1 = tk.Label(self.root,  text='请输入原密码', font=('微软雅黑', 18), fg="#000000", bg='white')
+            self.root_ety1 = tk.Entry(self.root, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
+            self.root_ety1.bind("<Return>", lambda event : self.confirm())
 
-            self.root1_lab2 = tk.Label(self.root,  text='请输入新密码', font=('微软雅黑', 18), fg="#000000", bg='white')
-            self.root1_ety2 = tk.Entry(self.root, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
-            self.root1_ety2.bind("<Return>", lambda event : self.confirm())
+            self.root_lab2 = tk.Label(self.root,  text='请输入新密码', font=('微软雅黑', 18), fg="#000000", bg='white')
+            self.root_ety2 = tk.Entry(self.root, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
+            self.root_ety2.bind("<Return>", lambda event : self.confirm())
 
-            self.root1_lab3 = tk.Label(self.root,  text='请重复输入新密码', font=('微软雅黑', 18), fg="#000000", bg='white')
-            self.root1_ety3 = tk.Entry(self.root, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
-            self.root1_ety3.bind("<Return>", lambda event : self.confirm())
+            self.root_lab3 = tk.Label(self.root,  text='请重复输入新密码', font=('微软雅黑', 18), fg="#000000", bg='white')
+            self.root_ety3 = tk.Entry(self.root, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
+            self.root_ety3.bind("<Return>", lambda event : self.confirm())
 
-            self.root1_bto = tk.Button(self.root, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white',text='确认', command=self.confirm)
-            self.root1_bto.bind("<Return>", lambda event : self.confirm())
+            self.root_bto = tk.Button(self.root, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white',text='确认', command=self.confirm)
+            self.root_bto.bind("<Return>", lambda event : self.confirm())
 
             self.notice_text_v = tk.StringVar()
             self.notice_text_v.set("None")
             self.notice = moretk.NoticeWindow(self.root, _title = "错误！", textvariable = self.notice_text_v, font_l=('微软雅黑', 14), font_b=('微软雅黑', 10), command=lambda : self.notice.withdraw())
 
-            self.root1_lab1.pack(pady=5)
-            self.root1_ety1.pack(pady=5)
-            self.root1_lab2.pack(pady=5)
-            self.root1_ety2.pack(pady=5)
-            self.root1_lab3.pack(pady=5)
-            self.root1_ety3.pack(pady=5)
-            self.root1_bto.pack(pady=10)
+            self.root_lab1.pack(pady=5)
+            self.root_ety1.pack(pady=5)
+            self.root_lab2.pack(pady=5)
+            self.root_ety2.pack(pady=5)
+            self.root_lab3.pack(pady=5)
+            self.root_ety3.pack(pady=5)
+            self.root_bto.pack(pady=10)
 
-        def root1_show(self):
+        def root_show(self):
             if self.root.state() != 'withdrawn':
                 self.root.withdraw()
                 self.root.deiconify()
@@ -386,36 +394,36 @@ def config_window():  #显示配置界面
         def confirm(self):
             nonlocal changed_password
 
-            if not(self.root1_ety1.get()):
+            if not(self.root_ety1.get()):
                 self.notice_text_v.set("请输入原密码！")
                 self.notice.show()
-            elif self.root1_ety1.get() != password_key:
+            elif self.root_ety1.get() != password_key:
                 self.notice_text_v.set("请输入正确的原密码！")
                 self.notice.show()
-                self.root1_ety1.delete(0, tk.END)
-            elif not(self.root1_ety2.get()):
+                self.root_ety1.delete(0, tk.END)
+            elif not(self.root_ety2.get()):
                 self.notice_text_v.set("请输入新密码！")
                 self.notice.show()
-            elif not(self.root1_ety3.get()):
+            elif not(self.root_ety3.get()):
                 self.notice_text_v.set("请重复输入新密码！")
                 self.notice.show()
-            elif self.root1_ety3.get() != self.root1_ety2.get():
+            elif self.root_ety3.get() != self.root_ety2.get():
                 self.notice_text_v.set("两次输入的新密码不一致！")
                 self.notice.show()
-                self.root1_ety2.delete(0, tk.END)
-                self.root1_ety3.delete(0, tk.END)
+                self.root_ety2.delete(0, tk.END)
+                self.root_ety3.delete(0, tk.END)
             else:
-                changed_password = str(self.root1_ety3.get())
+                changed_password = str(self.root_ety3.get())
                 self.notice_text_v.set("密码修改成功！")
                 self.notice.show()
-                self.root1_ety1.delete(0, tk.END)
-                self.root1_ety2.delete(0, tk.END)
-                self.root1_ety3.delete(0, tk.END)
+                self.root_ety1.delete(0, tk.END)
+                self.root_ety2.delete(0, tk.END)
+                self.root_ety3.delete(0, tk.END)
                 self.root.withdraw()
 
             
     def config_save():  #用于关闭时将修改后的数值写入config
-        config['ss_address'] = ss_ads_pic.address_get()
+        config['ss_path'] = ss_ads_pic.path_get()
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
         config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
         config['ss_shotgap'] = ss_cbb_gap_list_r[ss_cbb_gap.current()]
@@ -484,11 +492,11 @@ def config_window():  #显示配置界面
     ss_cbb_qty.current(next(i for i, v in enumerate(ss_cbb_qty_list_r) if v == config["ss_quality"]))
     ss_cbb_qty.pack(pady=10)
 
-    ss_ads_pic = moretk.AddressInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_address=ss_address, bg="white")
+    ss_ads_pic = moretk.PathInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_path=ss_path, bg="white")
     ss_ads_pic.pack(pady=10)
 
     pwdk_c_root = PasswordCange()
-    pwdk_c_bto = tk.Button(root5, bd=2, height=1, width=10, font=('微软雅黑',10), bg='grey', fg='white', text='修改密码', command=pwdk_c_root.root1_show)
+    pwdk_c_bto = tk.Button(root5, bd=2, height=1, width=10, font=('微软雅黑',10), bg='grey', fg='white', text='修改密码', command=pwdk_c_root.root_show)
     pwdk_c_bto.pack(pady=10)
     pwdk_c_root.root.withdraw()
     changed_password = None
@@ -517,7 +525,7 @@ def config_window():  #显示配置界面
     ss_bto_n.pack(side="right", padx=5)
     ss_bto_frame.pack(pady=10)
 
-    tp = moretk.ToolTip(ss_ads_pic, text=ss_address)
+    tp = moretk.ToolTip(ss_ads_pic, text=ss_path)
 
     ss_cbb_gap.bind("<Button-1>",lambda event : change())  #用于确认是否发生修改
     ss_cbb_ma.bind("<Button-1>", lambda event : change())
@@ -578,6 +586,7 @@ def cc_window():  #定时关机功能
         window_cc.geometry('300x350')
         window_cc.configure(bg='white')
         window_cc.resizable(False, False)
+        window_cc.lift()
 
         tv = tk.StringVar()
         tv.set("None")
@@ -608,6 +617,7 @@ def cc_window():  #定时关机功能
         window_ccc.geometry('300x220')
         window_ccc.configure(bg='white')
         window_ccc.resizable(False, False)
+        window_ccc.lift()
 
         frame_cc = tk.Frame(window_ccc, bg='white')
         frame_cc.pack(side="top", pady=5)
@@ -630,12 +640,23 @@ def cc_window():  #定时关机功能
         bto_cancel_cc = tk.Button(window_ccc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消关机', command=cancel_cc_cfm)
         bto_cancel_cc.pack(pady=5)
 
+def ssw_window():  #截图浏览界面
+    def refresh_circulate():
+        ssw.refresh()
+        ssw.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
+    
+    ssw = moretk.ScreenShotWindow(root, config["ss_path"])
+    ssw.show()
+
+    refresh_circulate()
+
 root = tk.Tk()
 root.title(f'健康上网{version}')
 root.geometry('662x400')
 root.configure(bg='white')
 root.resizable(False, False)
 root.iconphoto(False, tk.PhotoImage(file='icon.png'))
+root.lift()
 
 lab1_var = tk.StringVar()
 lab1_var.set('None')
@@ -649,6 +670,8 @@ bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='w
 bto4.place(x=105, y=35, anchor='center')
 bto_cc = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时关机',command=lambda : password(3))
 bto_cc.place(x=105, y=365, anchor='center')
+bto_ssw = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='截屏预览',command=lambda : password(4))
+bto_ssw.place(x=557, y=365, anchor='center')
 
 icon = oIcon(root)
 icon.tray_icon.run_detached()

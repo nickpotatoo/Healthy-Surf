@@ -2,7 +2,6 @@ import time
 import os
 import threading
 import subprocess
-import main
 
 class Circuit:
     def __init__(self):
