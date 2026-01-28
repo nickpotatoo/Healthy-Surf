@@ -9,7 +9,7 @@ from pystray import Icon, MenuItem, Menu
 import os
 import json        #导入必要库
 
-version = "v0.1.0"
+version = "v0.1.1"
 SECRET_KEY = "potato_love"
 if_first_run = True
 if_quit_judge = -1
@@ -21,7 +21,13 @@ ss_quality = 1
 ss_shotgap = 30*1000
 default_password = "potato"
 password_key = default_password
-default_config = {'ss_path':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
+default_config = {'ss_path':R'.\screenshot', 
+                  'ss_max_amount': 100, 
+                  'ss_quality': 1, 
+                  'ss_shotgap': 30*1000, 
+                  'if_quit_judge': -1, 
+                  'password_key': 'potato',
+                  'if_ask_delete_history': True}
 config = default_config
 default_hide = False
 now = datetime.now()
@@ -106,7 +112,7 @@ def time_update():
     lab1_var.set('您今日已累计使用电脑%d小时，%d分钟，%d秒' %(gap_hour, gap_min, gap_sec))
     root.after(5000, time_update)
 
-def history_check():   #用于图形界面查询历史
+def history_journal():   #用于图形界面查询历史
     global history, time_date
     
     root2 = tk.Toplevel()
@@ -124,9 +130,31 @@ def history_check():   #用于图形界面查询历史
         hty_key = {}
         htylist_insert()
         if if_circulate:
-            root2.after(5000, lambda: htylist_refresh(True))
+            root2.after(60000, lambda: htylist_refresh(True))
         else:
             pass
+
+    def htylist_delete_ask_window():  #删除历史询问窗口
+        def ask_window_on_confirm():
+            nonlocal ask_window
+            htylist_delete()
+            if ask_window.get_checkbutton_value():
+                config['if_ask_delete_history'] = False
+                config_write_json_encryption()
+            ask_window.destroy()
+
+        def ask_window_on_cancel():
+            nonlocal ask_window
+            if ask_window.get_checkbutton_value():
+                config['if_ask_delete_history'] = False
+                config_write_json_encryption()
+            ask_window.destroy()
+
+        if config['if_ask_delete_history']:
+            ask_window = moretk.CfmWindow(root2, text = "确认删除选中的历史记录？", font_b='微软雅黑', font_l='微软雅黑', on_cancel=ask_window_on_cancel, on_confirm=ask_window_on_confirm, enable_check_button=True, check_button_text="不再提示")
+            ask_window.show()
+        else:
+            htylist_delete()
     
     def htylist_delete():  #删除选中的本地历史并初始化
         global total_time, time_date
@@ -140,7 +168,7 @@ def history_check():   #用于图形界面查询历史
             total_time = 0
         lab1_var.set('您今日已累计使用电脑0小时，0分钟，0秒')    
         history_write_json()
-        htylist_refresh(0)
+        htylist_refresh(False)
 
     def htylist_insert():  #将历史写入查询界面
         nonlocal hty_key
@@ -158,28 +186,28 @@ def history_check():   #用于图形界面查询历史
     sb = tk.Scrollbar(root2, bd=2, width=30)
     sb.pack(side = 'right', fill= 'y' )
     
-    bto2 = tk.Button(root2,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='删除',command=htylist_delete)
+    bto2 = tk.Button(root2,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='删除',command=htylist_delete_ask_window)
     bto2.pack(side='bottom', pady= 50)
 
     htylist = tk.Listbox(root2, yscrollcommand=sb.set, width= 662, height= 10, font=('微软雅黑', 14))    
     
-    htylist_refresh(1)
+    htylist_refresh(True)
     
     htylist.pack()
 
 def if_quit():  #询问推出选项
     def quit_straight():  #选择直接退出
         global if_quit_judge
-        if qiw_cb_var.get():  #选了不再提问，则储存至config
+        if quit_ask_window.check_button_flag:  #选了不再提问，则储存至config
             if_quit_judge = 1
             config['if_quit_judge'] = 1
             config_write_json_encryption()
         password(0)
-        n.destroy()
+        quit_ask_window.destroy()
 
     def window_hide():  #选择最小化
         global if_quit_judge
-        if qiw_cb_var.get():  #选了不再提问，则储存至config
+        if quit_ask_window.check_button_flag:  #选了不再提问，则储存至config
             if_quit_judge = 0
             config['if_quit_judge'] = 0
             config_write_json_encryption()
@@ -187,24 +215,11 @@ def if_quit():  #询问推出选项
                 if isinstance(widget, tk.Toplevel):
                     widget.destroy()
         root.withdraw()
-        n.destroy()
+        quit_ask_window.destroy()
 
     if if_quit_judge == -1:   #如果没选过不再提问，或者后续取消不在提问，则问这个问题
-        quit_inquire_window = n = tk.Toplevel(root)
-        n.title('退出选项')
-        n.geometry('300x170')
-        n.configure(bg='white')
-        n.resizable(False, False)
-
-        qiw_cb_var = tk.BooleanVar()
-        qiw_cb = tk.Checkbutton(n, text="下次不再提问", font=("微软雅黑", 10), bg="white", variable=qiw_cb_var)
-        qiw_cb.deselect()
-        qiw_cb.pack(pady=5)
-
-        qiw_bto_1 = tk.Button(n,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='直接退出',command=quit_straight)
-        qiw_bto_2 = tk.Button(n,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='最小化',command=window_hide)
-        qiw_bto_1.pack(pady=5)
-        qiw_bto_2.pack(pady=5)
+        quit_ask_window = moretk.CfmWindow(root, text = "请选择退出选项", font_b='微软雅黑', font_l='微软雅黑', on_cancel=window_hide, confirm_button_text='直接退出', cancel_button_text='最小化', on_confirm=quit_straight, enable_check_button=True, check_button_text="下次不再提问")
+        quit_ask_window.show()
     
     else:
         if if_quit_judge:
@@ -230,7 +245,7 @@ def password(event_f):  # 用于密码确认
                     icon.tray_icon.stop()
                     root.destroy()
                 elif event_f == 1:  #显示历史界面
-                    history_check()
+                    history_journal()
                     root3.destroy()  
                 elif event_f == 2:   #显示配置界面
                     config_window()
