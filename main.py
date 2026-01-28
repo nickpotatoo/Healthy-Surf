@@ -332,10 +332,6 @@ def config_read_json_encryption(): #用于读取加密的配置文件
 
 def get_screen_init():
     global screenshoter
-    if os.path.exists("config.json"):
-        config_read_json_encryption()  #仅启动时读取config
-    else:
-        config_write_json_encryption()
     screenshoter = screenshot.Screenshoter(ss_path, ss_max_amount, ss_quality)
 
 def get_screen():  #主程序中使用截屏
@@ -692,6 +688,20 @@ icon = oIcon(root)
 icon.tray_icon.run_detached()
 
 root.protocol('WM_DELETE_WINDOW', if_quit)
+
+if os.path.exists("config.json"):
+    config_read_json_encryption()  #仅启动时读取config
+else:
+    config_write_json_encryption()
+
+for key in default_config:
+    if key not in config:
+        config[key] = default_config[key]
+        config_write_json_encryption()
+    elif type(config[key]) != type(default_config[key]):
+        config[key] = default_config[key]
+        config_write_json_encryption()
+
 
 time_update_init()
 time_update()
