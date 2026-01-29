@@ -4,25 +4,7 @@ from tkinter import filedialog
 from tkinter import ttk
 from typing import Literal
 import os
-from PIL import Image, ImageTk
-
-def font_width_deal(path_f, label):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址，其中label需要为要处理的tkinter.label实例
-        try:
-            width = label.winfo_width()
-            font = tkfont.Font(font=label.cget("font"))
-            path_c = path_f
-            if font.measure(path_c) <= width:
-                return path_f
-            else:
-                path_f = ''
-                for v in path_c:
-                    if font.measure(path_f + v + '...') > width - 10:
-                        break
-                    path_f += v
-                path_f += '...'
-                return path_f 
-        except:
-            print('sth wrong')        
+from PIL import Image, ImageTk 
 
 class ToolTip:  #提示框
     def __init__(self, widget, font="TkDefaultFont", textvariable:tk.StringVar=None, text='',judge=True, wraplength=500):
@@ -89,18 +71,37 @@ class PathInputBox(tk.Frame):  #地址输入框
         self.path = self.default_path
         self.path_v = tk.StringVar()
         self.path_v.set(self.path)
-        self.path_omit = tk.StringVar()
+        self.path_show = tk.StringVar()
 
         self.label_r = tk.Label(self, text=self.text, font=self.font_r, bg=self.bg)
         self.label_r.pack(side='left')
 
-        self.label_a = tk.Label(self, textvariable=self.path_omit, font=self.font_a, fg="#000000", bg=self.bg, relief='solid', borderwidth=0.5, width=self.width_a, anchor='w')
+        self.label_a = tk.Label(self, textvariable=self.path_show, font=self.font_a, fg="#000000", bg=self.bg, relief='solid', borderwidth=0.5, width=self.width_a, anchor='w')
         self.label_a.pack(side='left')
 
         self.label_a.bind("<Configure>", lambda event : self.__path_set(path_get=None))  
 
         self.button = tk.Button(self,bd=1,height=1,width=2,font=('微软雅黑', 7*self.button_size),bg='grey',fg='white',text='▼',command=self.__bto_pathca_deal)
         self.button.pack(side='right')
+
+    @staticmethod
+    def font_width_deal(path_f, label):  #用于计算地址长度是否过长，若过长，则返回截短后加上省略号的地址，其中label需要为要处理的tkinter.label实例
+        try:
+            width = label.winfo_width()
+            font = tkfont.Font(font=label.cget("font"))
+            path_c = path_f
+            if font.measure(path_c) <= width:
+                return path_f
+            else:
+                path_f = ''
+                for v in path_c:
+                    if font.measure(path_f + v + '...') > width - 10:
+                        break
+                    path_f += v
+                path_f += '...'
+                return path_f 
+        except:
+            print('sth wrong')   
 
     def bind(self, action:str=..., func=None):  #重写bind方法
         if action == "<Enter>":
@@ -122,7 +123,10 @@ class PathInputBox(tk.Frame):  #地址输入框
     def set(self, text=""):
         self.path = text
         self.path_v.set(text)
-        self.path_omit.set(font_width_deal(text, self.label_a))
+        if self.if_omit:
+            self.path_show.set(self.font_width_deal(text, self.label_a))
+        else:
+            self.path_show.set(text)
 
     def __bto_pathca_deal(self):  #仅用于获取地址界面
         if self.__PathChange_bind:
@@ -138,18 +142,17 @@ class PathInputBox(tk.Frame):  #地址输入框
     def __path_set(self, path_get):  #用于为各个地址属性赋值最终self.path与self.path_v即为地址，path_get=None时用于初始化
         if not path_get:
             if self.if_omit:
-                self.path_omit.set(font_width_deal(self.path, self.label_a))
+                self.path_show.set(self.font_width_deal(self.path, self.label_a))
             else:
-                self.path_omit.set(self.path)
+                self.path_show.set(self.path)
         else:
+            self.path_v.set(path_get)
+            self.path = path_get
             if self.if_omit:
-                path_c = font_width_deal(path_get, self.label_a)
+                self.path_show.set(self.font_width_deal(path_get, self.label_a))
             else:
-                path_c = self.path
-                self.path_v.set(path_get)
-                self.path = path_get
-            self.path_omit.set(path_c)
-
+                self.path_show.set(path_get)
+                
 class TextComboBox(tk.Frame):   #带有文字的combobox
     def __init__(self, master=None, text='', values=[], default_index=0, width=10, font_l="TkDefaultFont", font_c="TkDefaultFont", bg="white", *args, **kwargs):
         super().__init__(master, bg=bg, *args, **kwargs)
