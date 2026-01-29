@@ -24,7 +24,8 @@ default_config = {'ss_path':R'.\screenshot',
 config = default_config
 default_hide = False
 time_date = int(datetime.now().strftime('%Y%m%d'))
-history = {}
+default_history = {time_date: "0"}
+history = default_history
 if_turn_off_computer = False
 turn_off_computer_timer = None
 admin_mode = False
@@ -56,30 +57,30 @@ def safe_write(filename, content):  #安全写入文件
 
 def run_timer():   #计时器，用于更新monitor文件
     safe_write(".\\monitor", "b" + str(time.time()))
+    # print(history)
     root.after(10000, run_timer)
 
-def load_history_json():   #读取或创建本地历史文件，将结果保存为字典history
+def load_history_json_encryption():   #读取或创建加密的本地历史文件，将结果保存为字典history
     global history, time_date
-    if os.path.exists('.\\history.json'):
-        try:
-            with open('.\\history.json', 'r') as file:
-                history_c = json.load(file)
-                for k, v in history_c.items():
-                    history[int(k)] = v
-        except Exception as e:
+    try:
+        history_c = encryption.decrypt_file("history.json", SECRET_KEY)
+        if str(time_date) not in history_c:
+            history_c[str(time_date)] = history[time_date] 
+        history.clear()
+        for k, v in history_c.items():
+            history[int(k)] = v
+    except Exception as e:
             print("读取 history.json 出错:", e)
+            history.clear()
             history[time_date] = "0"
-    else:
-        with open('.\\history.json', 'w', newline='') as file:
-            hty_n = {}
-            hty_n[time_date] = "0"
-            json.dump(hty_n, file, indent=4)
-        history = {}
-        history[time_date] = "0"
 
-def history_write_json():  #将history以json格式写入本地
-    with open('.\\history.json', 'w', newline='') as file:
-        json.dump(history, file, indent=4)
+def history_write_json_encryption():  #将history以加密的json格式写入本地
+    global history
+    encryption.encrypt_file(history, "history.json", SECRET_KEY)
+
+    if admin_mode:
+        with open('.\\history_decrypt.json', 'w', newline='') as file:
+            json.dump(history, file, indent=4)
 
 def check_history():
     global time_date
@@ -88,7 +89,10 @@ def check_history():
 
 def time_update_init():
     global total_time, time_date
-    load_history_json()
+    if os.path.exists('history.json'):
+        load_history_json_encryption()
+    else:
+        history_write_json_encryption()
     check_history()
     total_time = int(history[time_date])
 
@@ -97,7 +101,7 @@ def time_update():
     if not if_first_run:
         total_time += 5
     history[time_date] = str(total_time)
-    history_write_json()
+    history_write_json_encryption()
     gap_hour = total_time // 3600
     gap_min = total_time % 3600 // 60
     gap_sec = total_time % 60
@@ -159,7 +163,7 @@ def history_journal():   #用于图形界面查询历史
             history[key_f] = '0'
             total_time = 0
         lab1_var.set('您今日已累计使用电脑0小时，0分钟，0秒')    
-        history_write_json()
+        history_write_json_encryption()
         htylist_refresh(False)
 
     def htylist_insert():  #将历史写入查询界面
@@ -219,7 +223,7 @@ def if_quit():  #询问推出选项
             root.withdraw()
 
 def password(event_f):  # 用于密码确认
-    global default_password, root, password_key
+    global root
     
     def password_check():  # 确认密码是否正确，如果是则执行对应操作
         global admin_mode
@@ -273,20 +277,6 @@ def password(event_f):  # 用于密码确认
     if admin_mode:  #管理员模式，跳过密码检查
         password_check()
 
-def config_read_json(): #用于读取配置文件
-    global config
-    if os.path.exists('config.json'): #读取本地config
-        try:
-            with open('.\\config.json', 'r') as file:
-                config = json.load(file)
-        except Exception as e:
-            print("读取 'config.json' 出错:", e)
-            config = default_config
-    else: #本地配置文件初始化
-        with open('.\\config.json', 'w', newline='') as file:
-            config = default_config
-            json.dump(config, file, indent=4)
-
 def config_read_json_encryption(): #用于读取加密的配置文件
     global config
     
@@ -294,10 +284,6 @@ def config_read_json_encryption(): #用于读取加密的配置文件
         config = encryption.decrypt_file("config.json", SECRET_KEY)
     except:
         config = default_config
-
-    if admin_mode:
-        with open('.\\config_decrypt.json', 'w', newline='') as file:
-            json.dump(config, file, indent=4)
 
 def get_screen_init():
     global screenshoter
@@ -308,23 +294,13 @@ def get_screen():  #主程序中使用截屏
     screenshoter.picture_clean()
     root.after(config['ss_shotgap'], get_screen)
 
-def config_write_json():  #用于将config中数值以json格式写入本地
-        if os.path.exists('config.json'):
-            try:
-                with open('.\\config.json', 'w', newline='') as file:
-                    json.dump(config, file, indent=4)
-
-            except Exception as e:
-                print("写入 'config.json' 出错:", e)
-        else:
-            with open('.\\config.json', 'w', newline='') as file:
-                config_n = default_config
-                json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
-                config_write_json()
-
 def config_write_json_encryption():   #用于将config中数值以加密的json格式写入本地
     global config
     encryption.encrypt_file(config, "config.json", SECRET_KEY)
+
+    if admin_mode:
+        with open('.\\config_decrypt.json', 'w', newline='') as file:
+            json.dump(config, file, indent=4)
 
 def config_window():  #显示配置界面
     class PasswordCange:  #用于修改密码
