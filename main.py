@@ -1,6 +1,7 @@
 import tkinter as tk
 import screenshot
 import moretk
+import picture_viewer
 import encryption
 from datetime import datetime
 import time
@@ -20,7 +21,8 @@ default_config = {'ss_path':R'.\screenshot',
                   'ss_shotgap': 30*1000, 
                   'if_quit_judge': -1, 
                   'password_key': 'potato',
-                  'if_ask_delete_history': True}
+                  'if_ask_delete_history': True,
+                  'if_ask_delete_screenshot': True}
 config = default_config
 default_hide = False
 time_date = int(datetime.now().strftime('%Y%m%d'))
@@ -619,7 +621,7 @@ def ssw_window():  #截图浏览界面
         ssw.refresh()
         ssw.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
     
-    ssw = moretk.ScreenShotWindow(root, config["ss_path"])
+    ssw = picture_viewer.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
     ssw.show()
 
     refresh_circulate()

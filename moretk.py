@@ -3,8 +3,6 @@ from tkinter import font as tkfont
 from tkinter import filedialog
 from tkinter import ttk
 from typing import Literal
-import os
-from PIL import Image, ImageTk 
 
 class ToolTip:  #提示框
     def __init__(self, widget, font="TkDefaultFont", textvariable:tk.StringVar=None, text='',judge=True, wraplength=500):
@@ -494,98 +492,12 @@ class NoticeWindow(tk.Toplevel):
             self.deiconify()
         self.lift()
 
-class ScreenShotWindow(tk.Toplevel):
-    """浏览截图界面"""
-    def __init__(self, master=None, path=None, *args, **kwargs):
-        super().__init__(master, *args, **kwargs)
-
-        self.master = master
-        self.path = path
-        self.is_shown = False
-        self.title("截屏浏览")
-        self.geometry("830x500")
-        self.resizable(False, False)
-
-        self.canvas = tk.Canvas(self, bg='white', width=800, height=500)
-        self.canvas.grid(row=0, column=0, sticky="nsew")
-
-        self.image_frame = tk.Frame(self.canvas, bg='white')
-        self.image_frame.bind("<Configure>", lambda event : self.canvas.configure(scrollregion=self.canvas.bbox("all"))) #更新滚动区域
-        self.canvas.create_window((0, 0), window=self.image_frame, anchor='nw')
-
-        self.withdraw() #初始化时隐藏窗口
-
-        self.scrollbar = tk.Scrollbar(self, orient='vertical', bd=2, width=30, command=self.canvas.yview)
-        self.scrollbar.grid(row=0, column=3, sticky='ns')
-
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
-        self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)) #绑定滚轮滚动
-        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
-    
-    def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(-int(event.delta/120), "units")
-
-    def show(self):
-        if self.state() != 'withdrawn':
-            self.withdraw() 
-            self.deiconify()
-        else:
-            self.deiconify()
-        self.lift()
-        self.is_shown = True
-        self._load_image()
-
-        for n in self.image_frame.winfo_children():
-            n.destroy()
-
-        r=c=0
-        for n in self.picture_list:
-            label = tk.Label(self.image_frame, image=n, bg='white')
-            label.grid(row = r, column = c, padx=5, pady=5)
-            label.bind("<Button-1>", lambda event : print("clicked"))
-            c+=1
-            if c == 3:
-                c = 0
-                r += 1
-
-    def refresh(self):
-        if self.is_shown:
-            self._load_image()
-
-            for n in self.image_frame.winfo_children():
-                n.destroy()
-
-            r=c=0
-            for n in self.picture_list:
-                label = tk.Label(self.image_frame, image=n)
-                label.grid(row = r, column = c, padx=5, pady=5)
-                c+=1
-                if c == 3:
-                    c = 0
-                    r += 1
-
-    def _load_image(self):
-        self.picture_list = []
-        for n in os.listdir(self.path):
-            image = Image.open(self.path+"\\"+n)
-            image = image.resize((250, 150))
-            photo = ImageTk.PhotoImage(image)
-            if n[:5] == 'hssp_':
-                self.picture_list.append(photo)
-
-    def withdraw(self):
-        super().withdraw()
-        self.is_shown = False
-
 if __name__ == '__main__':
     root = tk.Tk()
     root.geometry("400x300")
     root.title("测试moretk模块")
     
-    ssw = ScreenShotWindow(root, path="C:/Users/Datudo/Desktop/py/healthy_surf/screenshot")
-
-    btn = tk.Button(root, text="打开窗口", command=ssw.show)
+    btn = tk.Button(root, text="打开窗口")
     btn.pack(pady=20)
 
     root.mainloop()
