@@ -312,7 +312,7 @@ class TimeSpin(tk.Frame):
     
 class CfmWindow(tk.Toplevel):
     """确认界面"""
-    def __init__(self, master=None, text="default", textvariable:tk.StringVar=None, font_l="TkDefaultFont", font_b="TkDefaultFont", _title="确认窗口", on_confirm=None, confirm_button_text = "确认", on_cancel=None, cancel_button_text = "取消", enable_check_button = False, check_button_text = "default", *args, **kwargs):
+    def __init__(self, master=None, text:str="", textvariable:tk.StringVar=None, font_l="TkDefaultFont", font_b="TkDefaultFont", _title="确认窗口", on_confirm=None, confirm_button_text = "确认", on_cancel=None, cancel_button_text = "取消", enable_check_button = False, check_button_text = "default", *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.master = master
         self._title = _title
@@ -541,8 +541,9 @@ class ScreenShotWindow(tk.Toplevel):
 
         r=c=0
         for n in self.picture_list:
-            label = tk.Label(self.image_frame, image=n)
+            label = tk.Label(self.image_frame, image=n, bg='white')
             label.grid(row = r, column = c, padx=5, pady=5)
+            label.bind("<Button-1>", lambda event : print("clicked"))
             c+=1
             if c == 3:
                 c = 0
@@ -581,9 +582,10 @@ if __name__ == '__main__':
     root = tk.Tk()
     root.geometry("400x300")
     root.title("测试moretk模块")
-    check = CfmWindow(root, text="test", on_confirm=lambda : print("confirmed"), on_cancel=lambda : print("canceled"), check_button=True, check_button_text="不再提示")
+    
+    ssw = ScreenShotWindow(root, path="C:/Users/Datudo/Desktop/py/healthy_surf/screenshot")
 
-    btn = tk.Button(root, text="打开确认窗口", command=check.show)
+    btn = tk.Button(root, text="打开窗口", command=ssw.show)
     btn.pack(pady=20)
 
     root.mainloop()

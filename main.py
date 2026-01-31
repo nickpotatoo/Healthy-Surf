@@ -29,6 +29,7 @@ history = default_history
 if_turn_off_computer = False
 turn_off_computer_timer = None
 admin_mode = False
+screenshoter = None
 
 class oIcon:  #程序托盘图标
     def __init__(self, master):
@@ -304,7 +305,9 @@ def config_write_json_encryption():   #用于将config中数值以加密的json�
 
 def config_window():  #显示配置界面
     class PasswordCange:  #用于修改密码
-        def __init__(self):
+        def __init__(self, password_key:str = config['password_key']):
+            self.password_key = password_key
+
             self.root = tk.Toplevel(root5)
             self.root.title('修改密码')
             self.root.geometry('500x350')
@@ -350,37 +353,47 @@ def config_window():  #显示配置界面
         def confirm(self):
             nonlocal changed_password
 
-            if not(self.root_ety1.get()):
-                self.notice_text_v.set("请输入原密码！")
-                self.notice.show()
-            elif self.root_ety1.get() != config['password_key']:
-                self.notice_text_v.set("请输入正确的原密码！")
-                self.notice.show()
-                self.root_ety1.delete(0, tk.END)
-            elif not(self.root_ety2.get()):
-                self.notice_text_v.set("请输入新密码！")
-                self.notice.show()
-            elif not(self.root_ety3.get()):
-                self.notice_text_v.set("请重复输入新密码！")
-                self.notice.show()
-            elif self.root_ety3.get() != self.root_ety2.get():
-                self.notice_text_v.set("两次输入的新密码不一致！")
-                self.notice.show()
-                self.root_ety2.delete(0, tk.END)
-                self.root_ety3.delete(0, tk.END)
+            if not admin_mode:
+                if not(self.root_ety1.get()):
+                    self.notice_text_v.set("请输入原密码！")
+                    self.notice.show()
+                elif self.root_ety1.get() != self.password_key:
+                    self.notice_text_v.set("请输入正确的原密码！")
+                    self.notice.show()
+                    self.root_ety1.delete(0, tk.END)
+                elif not(self.root_ety2.get()):
+                    self.notice_text_v.set("请输入新密码！")
+                    self.notice.show()
+                elif not(self.root_ety3.get()):
+                    self.notice_text_v.set("请重复输入新密码！")
+                    self.notice.show()
+                elif self.root_ety3.get() != self.root_ety2.get():
+                    self.notice_text_v.set("两次输入的新密码不一致！")
+                    self.notice.show()
+                    self.root_ety2.delete(0, tk.END)
+                    self.root_ety3.delete(0, tk.END)
+                else:
+                    changed_password = str(self.root_ety3.get())
+                    self.password_key = changed_password
+                    self.notice_text_v.set("密码修改成功！")
+                    self.notice.show()
+                    self.root_ety1.delete(0, tk.END)
+                    self.root_ety2.delete(0, tk.END)
+                    self.root_ety3.delete(0, tk.END)
+                    self.root.withdraw()
+
             else:
                 changed_password = str(self.root_ety3.get())
+                self.password_key = changed_password
                 self.notice_text_v.set("密码修改成功！")
                 self.notice.show()
                 self.root_ety1.delete(0, tk.END)
                 self.root_ety2.delete(0, tk.END)
                 self.root_ety3.delete(0, tk.END)
                 self.root.withdraw()
-
             
     def config_save():  #用于关闭时将修改后的数值写入config
         config['ss_path'] = ss_path_inputbox.path_get()
-        print(ss_path_inputbox.path_get())
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
         config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
         config['ss_shotgap'] = ss_cbb_gap_list_r[ss_cbb_gap.current()]
@@ -566,6 +579,8 @@ def cc_window():  #定时关机功能
         bto_cacl = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消', command=window_cc.destroy)
         bto_cfm.place(x=80, y=300, anchor='center')
         bto_cacl.place(x=220, y=300, anchor='center')
+
+        window_cc.lift()
     
     else:
         window_cc = None
@@ -596,6 +611,8 @@ def cc_window():  #定时关机功能
 
         bto_cancel_cc = tk.Button(window_ccc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消关机', command=cancel_cc_cfm)
         bto_cancel_cc.pack(pady=5)
+
+        window_ccc.lift()
 
 def ssw_window():  #截图浏览界面
     def refresh_circulate():
