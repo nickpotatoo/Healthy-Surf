@@ -60,7 +60,6 @@ def safe_write(filename, content):  #安全写入文件
 
 def run_timer():   #计时器，用于更新monitor文件
     safe_write(".\\monitor", "b" + str(time.time()))
-    # print(history)
     root.after(10000, run_timer)
 
 def load_history_json_encryption():   #读取或创建加密的本地历史文件，将结果保存为字典history
@@ -256,7 +255,7 @@ def password(event_f):  # 用于密码确认
                     cc_window()
                     root3.destroy()
                 elif event_f ==4:  #显示截图浏览界面
-                    ssw_window()
+                    open_screenshot_viewing_window()
                     root3.destroy()
             elif shur1.get() == 'admin':  #管理员模式
                 admin_mode = True
@@ -295,9 +294,14 @@ def config_read_json_encryption(): #用于读取加密的配置文件
     except:
         config = default_config
 
-def get_screen_init():
+def screenshoter_init():
     global screenshoter
-    screenshoter = screenshot.Screenshoter(config['ss_path'], config['ss_max_amount'], config['ss_quality'])
+    screenshoter = screenshot.Screenshoter(path=config['ss_path'], max_amount=config['ss_max_amount'], quality=config['ss_quality'])
+
+def screenshoter_config_update():
+    screenshoter.path = config['ss_path']
+    screenshoter.max_amount = config['ss_max_amount']
+    screenshoter.quality = config['ss_quality']
 
 def get_screen():  #主程序中使用截屏
     screenshoter.screenshot()
@@ -401,7 +405,7 @@ def config_window():  #显示配置界面
                 self.root_ety3.delete(0, tk.END)
                 self.root.withdraw()
             
-    def config_save():  #用于关闭时将修改后的数值写入config
+    def config_update():  #用于关闭时将修改后的数值写入config
         config['ss_path'] = ss_path_inputbox.path_get()
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
         config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
@@ -415,6 +419,8 @@ def config_window():  #显示配置界面
         else:
             config['if_quit_judge'] = -1
 
+        screenshoter_config_update()
+
     def if_save():  #确认保存界面
         if if_change:
             root6 = tk.Toplevel(root5)
@@ -426,7 +432,7 @@ def config_window():  #显示配置界面
             lab_is = tk.Label(root6, text='是否保存', font=('微软雅黑', 20), fg="#000000", bg='white')
             lab_is.pack(side='top', pady=20)
 
-            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json_encryption(), root6.destroy(), root5.destroy()))
+            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_update(), config_write_json_encryption(), root6.destroy(), root5.destroy()))
             bto_is_n = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='取消',command=lambda : (root6.destroy(), root5.destroy()))
             bto_is_y.pack(side='left', padx=60)
             bto_is_n.pack(side='right', padx=60)
@@ -465,8 +471,8 @@ def config_window():  #显示配置界面
     ss_cbb_ma.current(next(i for i, v in enumerate(ss_cbb_ma_list_r) if v == config["ss_max_amount"]))
     ss_cbb_ma.pack(pady=10)
 
-    ss_cbb_qty_list_r = [1, 2, 4]
-    ss_cbb_qty_list = ['1倍质量', '2倍质量', '4倍质量']
+    ss_cbb_qty_list_r = [1, 2, 4, 8]
+    ss_cbb_qty_list = ['1倍质量', '2倍质量', '4倍质量', '8倍质量']
     ss_cbb_qty = moretk.TextComboBox(root5, text="图片质量", font_l=('微软雅黑', 14), font_c=('微软雅黑', 12), bg="white", values=ss_cbb_qty_list)
     ss_cbb_qty.current(next(i for i, v in enumerate(ss_cbb_qty_list_r) if v == config["ss_quality"]))
     ss_cbb_qty.pack(pady=10)
@@ -498,7 +504,7 @@ def config_window():  #显示配置界面
     ss_quitway_frame.pack(pady=5)
 
     ss_bto_frame = tk.Frame(root5, bg="white")
-    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json_encryption(), root5.destroy()))
+    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_update(), config_write_json_encryption(), root5.destroy()))
     ss_bto_n = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消',command=root5.destroy)
     ss_bto_y.pack(side="left", padx=5)
     ss_bto_n.pack(side="right", padx=5)
@@ -623,13 +629,13 @@ def cc_window():  #定时关机功能
 
         window_ccc.lift()
 
-def ssw_window():  #截图浏览界面
+def open_screenshot_viewing_window():  #截图浏览界面
     def refresh_circulate():
-        ssw.refresh()
-        ssw.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
+        screenshot_viewing_window.refresh()
+        screenshot_viewing_window.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
     
-    ssw = picture_viewer.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
-    ssw.show()
+    screenshot_viewing_window = picture_viewer.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
+    screenshot_viewing_window.show()
 
     refresh_circulate()
 
@@ -677,7 +683,7 @@ for key in default_config:  #校验config完整性与正确性
 
 time_update_init()
 time_update()
-get_screen_init()
+screenshoter_init()
 get_screen()
 
 if os.path.exists(".\\monitor"):

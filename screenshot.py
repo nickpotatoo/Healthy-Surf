@@ -20,8 +20,8 @@ class Screenshoter:
         try:
             self.image = ImageGrab.grab()
             self.image = self.image.resize(self._picture_quality_deal())
-            self.image.save('%s\\hssp_%s.png' % (self.path, time))
-            self.picture_cache = '%s.png' % time
+            self.image.save('%s\\hssp_%s.jpg' % (self.path, time))
+            self.picture_cache = '%s.jpg' % time
             return True
         except Exception as e:
             print('截图失败:', e)
