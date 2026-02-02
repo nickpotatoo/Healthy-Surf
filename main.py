@@ -1,6 +1,7 @@
 import tkinter as tk
 import screenshot
 import moretk
+import picture_viewer
 import encryption
 from datetime import datetime
 import time
@@ -9,27 +10,28 @@ from pystray import Icon, MenuItem, Menu
 import os
 import json        #导入必要库
 
-version = "v0.1.0"
+version = "v0.1.1"
 SECRET_KEY = "potato_love"
 if_first_run = True
-if_quit_judge = -1
 time_date = "0"
 total_time = 0
-ss_path = R".\screenshot"
-ss_max_amount = 100
-ss_quality = 1
-ss_shotgap = 30*1000
-default_password = "potato"
-password_key = default_password
-default_config = {'ss_path':R'.\screenshot', 'ss_max_amount': 100, 'ss_quality': 1, 'ss_shotgap': 30*1000, 'if_quit_judge': -1, 'password_key': 'potato'}
+default_config = {'ss_path':R'.\screenshot', 
+                  'ss_max_amount': 100, 
+                  'ss_quality': 1, 
+                  'ss_shotgap': 30*1000, 
+                  'if_quit_judge': -1, 
+                  'password_key': 'potato',
+                  'if_ask_delete_history': True,
+                  'if_ask_delete_screenshot': True}
 config = default_config
 default_hide = False
-now = datetime.now()
-time_date = int(now.strftime('%Y%m%d'))
-history = {}
-if_cc_conduct = False
-cc_timer = None
+time_date = int(datetime.now().strftime('%Y%m%d'))
+default_history = {time_date: "0"}
+history = default_history
+if_turn_off_computer = False
+turn_off_computer_timer = None
 admin_mode = False
+screenshoter = None
 
 class oIcon:  #程序托盘图标
     def __init__(self, master):
@@ -60,28 +62,27 @@ def run_timer():   #计时器，用于更新monitor文件
     safe_write(".\\monitor", "b" + str(time.time()))
     root.after(10000, run_timer)
 
-def load_history_json():   #读取或创建本地历史文件，将结果保存为字典history
+def load_history_json_encryption():   #读取或创建加密的本地历史文件，将结果保存为字典history
     global history, time_date
-    if os.path.exists('.\\history.json'):
-        try:
-            with open('.\\history.json', 'r') as file:
-                history_c = json.load(file)
-                for k, v in history_c.items():
-                    history[int(k)] = v
-        except Exception as e:
+    try:
+        history_c = encryption.decrypt_file("history.json", SECRET_KEY)
+        if str(time_date) not in history_c:
+            history_c[str(time_date)] = history[time_date] 
+        history.clear()
+        for k, v in history_c.items():
+            history[int(k)] = v
+    except Exception as e:
             print("读取 history.json 出错:", e)
+            history.clear()
             history[time_date] = "0"
-    else:
-        with open('.\\history.json', 'w', newline='') as file:
-            hty_n = {}
-            hty_n[time_date] = "0"
-            json.dump(hty_n, file, indent=4)
-        history = {}
-        history[time_date] = "0"
 
-def history_write_json():  #将history以json格式写入本地
-    with open('.\\history.json', 'w', newline='') as file:
-        json.dump(history, file, indent=4)
+def history_write_json_encryption():  #将history以加密的json格式写入本地
+    global history
+    encryption.encrypt_file(history, "history.json", SECRET_KEY)
+
+    if admin_mode:
+        with open('.\\history_decrypt.json', 'w', newline='') as file:
+            json.dump(history, file, indent=4)
 
 def check_history():
     global time_date
@@ -90,7 +91,10 @@ def check_history():
 
 def time_update_init():
     global total_time, time_date
-    load_history_json()
+    if os.path.exists('history.json'):
+        load_history_json_encryption()
+    else:
+        history_write_json_encryption()
     check_history()
     total_time = int(history[time_date])
 
@@ -99,14 +103,14 @@ def time_update():
     if not if_first_run:
         total_time += 5
     history[time_date] = str(total_time)
-    history_write_json()
+    history_write_json_encryption()
     gap_hour = total_time // 3600
     gap_min = total_time % 3600 // 60
     gap_sec = total_time % 60
     lab1_var.set('您今日已累计使用电脑%d小时，%d分钟，%d秒' %(gap_hour, gap_min, gap_sec))
     root.after(5000, time_update)
 
-def history_check():   #用于图形界面查询历史
+def history_journal():   #用于图形界面查询历史
     global history, time_date
     
     root2 = tk.Toplevel()
@@ -124,9 +128,28 @@ def history_check():   #用于图形界面查询历史
         hty_key = {}
         htylist_insert()
         if if_circulate:
-            root2.after(5000, lambda: htylist_refresh(True))
+            root2.after(60000, lambda: htylist_refresh(True))
+
+    def ask_window_on_confirm():
+        nonlocal ask_window
+        htylist_delete()
+        if ask_window.get_checkbutton_value():
+            config['if_ask_delete_history'] = False
+            config_write_json_encryption()
+        ask_window.withdraw()
+
+    def ask_window_on_cancel():
+        nonlocal ask_window
+        if ask_window.get_checkbutton_value():
+            config['if_ask_delete_history'] = False
+            config_write_json_encryption()
+        ask_window.withdraw()
+
+    def htylist_delete_ask_window():  #删除历史询问窗口
+        if config['if_ask_delete_history']:
+            ask_window.show()
         else:
-            pass
+            htylist_delete()
     
     def htylist_delete():  #删除选中的本地历史并初始化
         global total_time, time_date
@@ -139,8 +162,8 @@ def history_check():   #用于图形界面查询历史
             history[key_f] = '0'
             total_time = 0
         lab1_var.set('您今日已累计使用电脑0小时，0分钟，0秒')    
-        history_write_json()
-        htylist_refresh(0)
+        history_write_json_encryption()
+        htylist_refresh(False)
 
     def htylist_insert():  #将历史写入查询界面
         nonlocal hty_key
@@ -157,57 +180,50 @@ def history_check():   #用于图形界面查询历史
     
     sb = tk.Scrollbar(root2, bd=2, width=30)
     sb.pack(side = 'right', fill= 'y' )
-    
-    bto2 = tk.Button(root2,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='删除',command=htylist_delete)
-    bto2.pack(side='bottom', pady= 50)
 
-    htylist = tk.Listbox(root2, yscrollcommand=sb.set, width= 662, height= 10, font=('微软雅黑', 14))    
+    button_frame = tk.Frame(root2)
     
-    htylist_refresh(1)
+    delete_button = tk.Button(button_frame, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white', text='删除', command=htylist_delete_ask_window)
+    delete_button.pack(side='left', padx= 5)
+
+    refresh_button = tk.Button(button_frame, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white', text='刷新', command=lambda:htylist_refresh(False))
+    refresh_button.pack(side='right', padx= 5)
+
+    button_frame.pack(side='bottom', pady=10)
+
+    htylist = tk.Listbox(root2, yscrollcommand=sb.set, width= 662, height= 15, font=('微软雅黑', 14))    
+
+    if config['if_ask_delete_history']:
+        ask_window = moretk.CfmWindow(root2, text = "确认删除选中的历史记录？", font_b='微软雅黑', font_l='微软雅黑', on_cancel=ask_window_on_cancel, on_confirm=ask_window_on_confirm, enable_check_button=True, check_button_text="不再提示")
+    
+    htylist_refresh(True)
     
     htylist.pack()
 
 def if_quit():  #询问推出选项
     def quit_straight():  #选择直接退出
-        global if_quit_judge
-        if qiw_cb_var.get():  #选了不再提问，则储存至config
-            if_quit_judge = 1
+        if quit_ask_window.check_button_flag:  #选了不再提问，则储存至config
             config['if_quit_judge'] = 1
             config_write_json_encryption()
         password(0)
-        n.destroy()
+        quit_ask_window.destroy()
 
     def window_hide():  #选择最小化
-        global if_quit_judge
-        if qiw_cb_var.get():  #选了不再提问，则储存至config
-            if_quit_judge = 0
+        if quit_ask_window.check_button_flag:  #选了不再提问，则储存至config
             config['if_quit_judge'] = 0
             config_write_json_encryption()
         for widget in root.winfo_children():  #清理所有打开的界面
                 if isinstance(widget, tk.Toplevel):
                     widget.destroy()
         root.withdraw()
-        n.destroy()
+        quit_ask_window.destroy()
 
-    if if_quit_judge == -1:   #如果没选过不再提问，或者后续取消不在提问，则问这个问题
-        quit_inquire_window = n = tk.Toplevel(root)
-        n.title('退出选项')
-        n.geometry('300x170')
-        n.configure(bg='white')
-        n.resizable(False, False)
-
-        qiw_cb_var = tk.BooleanVar()
-        qiw_cb = tk.Checkbutton(n, text="下次不再提问", font=("微软雅黑", 10), bg="white", variable=qiw_cb_var)
-        qiw_cb.deselect()
-        qiw_cb.pack(pady=5)
-
-        qiw_bto_1 = tk.Button(n,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='直接退出',command=quit_straight)
-        qiw_bto_2 = tk.Button(n,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='最小化',command=window_hide)
-        qiw_bto_1.pack(pady=5)
-        qiw_bto_2.pack(pady=5)
+    if config['if_quit_judge'] == -1:   #如果没选过不再提问，或者后续取消不在提问，则问这个问题
+        quit_ask_window = moretk.CfmWindow(root, text = "请选择退出选项", font_b='微软雅黑', font_l='微软雅黑', on_cancel=window_hide, confirm_button_text='直接退出', cancel_button_text='最小化', on_confirm=quit_straight, enable_check_button=True, check_button_text="下次不再提问")
+        quit_ask_window.show()
     
     else:
-        if if_quit_judge:
+        if config['if_quit_judge']:
             password(0)
         else:
             for widget in root.winfo_children():
@@ -216,21 +232,21 @@ def if_quit():  #询问推出选项
             root.withdraw()
 
 def password(event_f):  # 用于密码确认
-    global default_password, root, password_key
+    global root
     
     def password_check():  # 确认密码是否正确，如果是则执行对应操作
         global admin_mode
         try:
-            if shur1.get() == password_key or admin_mode:
+            if shur1.get() == config['password_key'] or admin_mode:
                 if event_f == 0:   #程序退出
-                    if not(if_quit_judge):
+                    if not(config['if_quit_judge']):
                         icon.tray_icon.stop()
                     safe_write("monitor", "d")
                     root3.destroy()
                     icon.tray_icon.stop()
                     root.destroy()
                 elif event_f == 1:  #显示历史界面
-                    history_check()
+                    history_journal()
                     root3.destroy()  
                 elif event_f == 2:   #显示配置界面
                     config_window()
@@ -239,7 +255,7 @@ def password(event_f):  # 用于密码确认
                     cc_window()
                     root3.destroy()
                 elif event_f ==4:  #显示截图浏览界面
-                    ssw_window()
+                    open_screenshot_viewing_window()
                     root3.destroy()
             elif shur1.get() == 'admin':  #管理员模式
                 admin_mode = True
@@ -270,85 +286,41 @@ def password(event_f):  # 用于密码确认
     if admin_mode:  #管理员模式，跳过密码检查
         password_check()
 
-def config_read_json(): #用于读取配置文件
-    global config, ss_path, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
-    if os.path.exists('config.json'): #读取本地config
-        try:
-            with open('.\\config.json', 'r') as file:
-                config = json.load(file)
-        except Exception as e:
-            print("读取 'config.json' 出错:", e)
-            config = default_config
-    else: #本地配置文件初始化
-        with open('.\\config.json', 'w', newline='') as file:
-            config = default_config
-            json.dump(config, file, indent=4)
-    try:
-        ss_path = config['ss_path']
-        ss_max_amount = config['ss_max_amount']
-        ss_quality = config['ss_quality']
-        ss_shotgap = config['ss_shotgap']  
-        if_quit_judge = config['if_quit_judge'] #从config中获取并定义变量
-        password_key = config['password_key']
-    except:
-        config = default_config
-
 def config_read_json_encryption(): #用于读取加密的配置文件
-    global config, ss_path, ss_max_amount, ss_quality, ss_shotgap, if_quit_judge, password_key
+    global config
     
     try:
         config = encryption.decrypt_file("config.json", SECRET_KEY)
     except:
         config = default_config
 
-    if admin_mode:
-        with open('.\\config_decrypt.json', 'w', newline='') as file:
-            json.dump(config, file, indent=4)
-
-    try:
-        ss_path = config['ss_path']
-        ss_max_amount = config['ss_max_amount']
-        ss_quality = config['ss_quality']
-        ss_shotgap = config['ss_shotgap']  
-        if_quit_judge = config['if_quit_judge'] #从config中获取并定义变量
-        password_key = config['password_key']
-    except:
-        config = default_config
-
-def get_screen_init():
+def screenshoter_init():
     global screenshoter
-    if os.path.exists("config.json"):
-        config_read_json_encryption()  #仅启动时读取config
-    else:
-        config_write_json_encryption()
-    screenshoter = screenshot.Screenshoter(ss_path, ss_max_amount, ss_quality)
+    screenshoter = screenshot.Screenshoter(path=config['ss_path'], max_amount=config['ss_max_amount'], quality=config['ss_quality'])
+
+def screenshoter_config_update():
+    screenshoter.path = config['ss_path']
+    screenshoter.max_amount = config['ss_max_amount']
+    screenshoter.quality = config['ss_quality']
 
 def get_screen():  #主程序中使用截屏
     screenshoter.screenshot()
     screenshoter.picture_clean()
-    root.after(ss_shotgap, get_screen)
-
-def config_write_json():  #用于将config中数值以json格式写入本地
-        if os.path.exists('config.json'):
-            try:
-                with open('.\\config.json', 'w', newline='') as file:
-                    json.dump(config, file, indent=4)
-
-            except Exception as e:
-                print("写入 'config.json' 出错:", e)
-        else:
-            with open('.\\config.json', 'w', newline='') as file:
-                config_n = default_config
-                json.dump(config_n, file, indent=4)  #如果文件不存在的话就创建一个默认文件再写入一次
-                config_write_json()
+    root.after(config['ss_shotgap'], get_screen)
 
 def config_write_json_encryption():   #用于将config中数值以加密的json格式写入本地
     global config
     encryption.encrypt_file(config, "config.json", SECRET_KEY)
 
+    if admin_mode:
+        with open('.\\config_decrypt.json', 'w', newline='') as file:
+            json.dump(config, file, indent=4)
+
 def config_window():  #显示配置界面
     class PasswordCange:  #用于修改密码
-        def __init__(self):
+        def __init__(self, password_key:str = config['password_key']):
+            self.password_key = password_key
+
             self.root = tk.Toplevel(root5)
             self.root.title('修改密码')
             self.root.geometry('500x350')
@@ -394,36 +366,47 @@ def config_window():  #显示配置界面
         def confirm(self):
             nonlocal changed_password
 
-            if not(self.root_ety1.get()):
-                self.notice_text_v.set("请输入原密码！")
-                self.notice.show()
-            elif self.root_ety1.get() != password_key:
-                self.notice_text_v.set("请输入正确的原密码！")
-                self.notice.show()
-                self.root_ety1.delete(0, tk.END)
-            elif not(self.root_ety2.get()):
-                self.notice_text_v.set("请输入新密码！")
-                self.notice.show()
-            elif not(self.root_ety3.get()):
-                self.notice_text_v.set("请重复输入新密码！")
-                self.notice.show()
-            elif self.root_ety3.get() != self.root_ety2.get():
-                self.notice_text_v.set("两次输入的新密码不一致！")
-                self.notice.show()
-                self.root_ety2.delete(0, tk.END)
-                self.root_ety3.delete(0, tk.END)
+            if not admin_mode:
+                if not(self.root_ety1.get()):
+                    self.notice_text_v.set("请输入原密码！")
+                    self.notice.show()
+                elif self.root_ety1.get() != self.password_key:
+                    self.notice_text_v.set("请输入正确的原密码！")
+                    self.notice.show()
+                    self.root_ety1.delete(0, tk.END)
+                elif not(self.root_ety2.get()):
+                    self.notice_text_v.set("请输入新密码！")
+                    self.notice.show()
+                elif not(self.root_ety3.get()):
+                    self.notice_text_v.set("请重复输入新密码！")
+                    self.notice.show()
+                elif self.root_ety3.get() != self.root_ety2.get():
+                    self.notice_text_v.set("两次输入的新密码不一致！")
+                    self.notice.show()
+                    self.root_ety2.delete(0, tk.END)
+                    self.root_ety3.delete(0, tk.END)
+                else:
+                    changed_password = str(self.root_ety3.get())
+                    self.password_key = changed_password
+                    self.notice_text_v.set("密码修改成功！")
+                    self.notice.show()
+                    self.root_ety1.delete(0, tk.END)
+                    self.root_ety2.delete(0, tk.END)
+                    self.root_ety3.delete(0, tk.END)
+                    self.root.withdraw()
+
             else:
                 changed_password = str(self.root_ety3.get())
+                self.password_key = changed_password
                 self.notice_text_v.set("密码修改成功！")
                 self.notice.show()
                 self.root_ety1.delete(0, tk.END)
                 self.root_ety2.delete(0, tk.END)
                 self.root_ety3.delete(0, tk.END)
                 self.root.withdraw()
-
             
-    def config_save():  #用于关闭时将修改后的数值写入config
-        config['ss_path'] = ss_ads_pic.path_get()
+    def config_update():  #用于关闭时将修改后的数值写入config
+        config['ss_path'] = ss_path_inputbox.path_get()
         config['ss_max_amount'] = ss_cbb_ma_list_r[ss_cbb_ma.current()]
         config['ss_quality'] = ss_cbb_qty_list_r[ss_cbb_qty.current()]
         config['ss_shotgap'] = ss_cbb_gap_list_r[ss_cbb_gap.current()]
@@ -436,6 +419,8 @@ def config_window():  #显示配置界面
         else:
             config['if_quit_judge'] = -1
 
+        screenshoter_config_update()
+
     def if_save():  #确认保存界面
         if if_change:
             root6 = tk.Toplevel(root5)
@@ -447,7 +432,7 @@ def config_window():  #显示配置界面
             lab_is = tk.Label(root6, text='是否保存', font=('微软雅黑', 20), fg="#000000", bg='white')
             lab_is.pack(side='top', pady=20)
 
-            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json_encryption(), config_read_json_encryption(), root6.destroy(), root5.destroy()))
+            bto_is_y = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='保存',command=lambda : (config_update(), config_write_json_encryption(), root6.destroy(), root5.destroy()))
             bto_is_n = tk.Button(root6,bd=2,height=1,width=6,font=('微软雅黑', 13),bg='grey',fg='white',text='取消',command=lambda : (root6.destroy(), root5.destroy()))
             bto_is_y.pack(side='left', padx=60)
             bto_is_n.pack(side='right', padx=60)
@@ -486,14 +471,14 @@ def config_window():  #显示配置界面
     ss_cbb_ma.current(next(i for i, v in enumerate(ss_cbb_ma_list_r) if v == config["ss_max_amount"]))
     ss_cbb_ma.pack(pady=10)
 
-    ss_cbb_qty_list_r = [1, 2, 4]
-    ss_cbb_qty_list = ['1倍质量', '2倍质量', '4倍质量']
+    ss_cbb_qty_list_r = [1, 2, 4, 8]
+    ss_cbb_qty_list = ['1倍质量', '2倍质量', '4倍质量', '8倍质量']
     ss_cbb_qty = moretk.TextComboBox(root5, text="图片质量", font_l=('微软雅黑', 14), font_c=('微软雅黑', 12), bg="white", values=ss_cbb_qty_list)
     ss_cbb_qty.current(next(i for i, v in enumerate(ss_cbb_qty_list_r) if v == config["ss_quality"]))
     ss_cbb_qty.pack(pady=10)
 
-    ss_ads_pic = moretk.PathInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_path=ss_path, bg="white")
-    ss_ads_pic.pack(pady=10)
+    ss_path_inputbox = moretk.PathInputBox(root5, text="截屏保存路径", font_a=('微软雅黑', 10), font_r=('微软雅黑', 14), default_path=config['ss_path'], bg="white")
+    ss_path_inputbox.pack(pady=10)
 
     pwdk_c_root = PasswordCange()
     pwdk_c_bto = tk.Button(root5, bd=2, height=1, width=10, font=('微软雅黑',10), bg='grey', fg='white', text='修改密码', command=pwdk_c_root.root_show)
@@ -519,18 +504,18 @@ def config_window():  #显示配置界面
     ss_quitway_frame.pack(pady=5)
 
     ss_bto_frame = tk.Frame(root5, bg="white")
-    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_save(), config_write_json_encryption(), config_read_json_encryption(), root5.destroy()))
+    ss_bto_y = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='保存',command=lambda : (config_update(), config_write_json_encryption(), root5.destroy()))
     ss_bto_n = tk.Button(ss_bto_frame,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消',command=root5.destroy)
     ss_bto_y.pack(side="left", padx=5)
     ss_bto_n.pack(side="right", padx=5)
     ss_bto_frame.pack(pady=10)
 
-    tp = moretk.ToolTip(ss_ads_pic, text=ss_path)
+    tp = moretk.ToolTip(ss_path_inputbox, text=config['ss_path'])
 
     ss_cbb_gap.bind("<Button-1>",lambda event : change())  #用于确认是否发生修改
     ss_cbb_ma.bind("<Button-1>", lambda event : change())
     ss_cbb_qty.bind("<Button-1>", lambda event : change())
-    ss_ads_pic.bind("<AddressChange>", lambda event : change())
+    ss_path_inputbox.bind("<AddressChange>", lambda event : change())
     ss_quitway_cb_1.bind("<Button-1>",lambda event : change())
     ss_quitway_cb_2.bind("<Button-1>",lambda event : change())
     pwdk_c_bto.bind("<Button-1>",lambda event : change())
@@ -545,11 +530,11 @@ def cc_window():  #定时关机功能
         tv.set("是否确认%d小时%d分钟后关机？"%(cch_result, ccm_result))
         
     def on_confirm():
-        global if_cc_conduct, cc_timer
+        global if_turn_off_computer, turn_off_computer_timer
         cch_result = cch.get_selected()
         ccm_result = ccm.get_selected()
-        if_cc_conduct = True
-        cc_timer = moretk.Timer(root, cch_result*3600+ccm_result*60-60, on_cclose)
+        if_turn_off_computer = True
+        turn_off_computer_timer = moretk.Timer(root, cch_result*3600+ccm_result*60-60, on_cclose)
         window_cc.destroy()
 
     def cancel_cc_cfm():
@@ -557,29 +542,29 @@ def cc_window():  #定时关机功能
         ccc_cfmw.show()
 
     def cancel_cc():
-        global if_cc_conduct
-        cc_timer.cancel()
-        if_cc_conduct = False
+        global if_turn_off_computer
+        turn_off_computer_timer.cancel()
+        if_turn_off_computer = False
         window_ccc.destroy()
 
     def on_cclose():
         def shutdown():
-            global if_cc_conduct
-            if_cc_conduct = False
+            global if_turn_off_computer
+            if_turn_off_computer = False
             os.system("shutdown /s /t 1")
-        shutdownreminder = n =tk.Toplevel(root)
+        turn_off_computer_reminder = tk.Toplevel(root)
 
-        n.title('错误')
-        n.geometry('400x100')
-        n.configure(bg='white')
-        n.resizable(False, False)
+        turn_off_computer_reminder.title('错误')
+        turn_off_computer_reminder.geometry('400x100')
+        turn_off_computer_reminder.configure(bg='white')
+        turn_off_computer_reminder.resizable(False, False)
 
-        nlabel = tk.Label(n, text='电脑将于一分钟后关机，请及时保存文件！',font=('微软雅黑', 14),fg="#000000", bg='white')
+        nlabel = tk.Label(turn_off_computer_reminder, text='电脑将于一分钟后关机，请及时保存文件！',font=('微软雅黑', 14),fg="#000000", bg='white')
         nlabel.pack(pady=30)
 
         root.after(60000, shutdown)
 
-    if not if_cc_conduct:
+    if not if_turn_off_computer:
         window_ccc = None
         window_cc = tk.Toplevel(root)
         window_cc.title('定时关机设置')
@@ -609,6 +594,8 @@ def cc_window():  #定时关机功能
         bto_cacl = tk.Button(window_cc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消', command=window_cc.destroy)
         bto_cfm.place(x=80, y=300, anchor='center')
         bto_cacl.place(x=220, y=300, anchor='center')
+
+        window_cc.lift()
     
     else:
         window_cc = None
@@ -628,7 +615,7 @@ def cc_window():  #定时关机功能
         frame_line2 = tk.Frame(frame_cc, bg='white')
         frame_line2.pack(pady=5)
 
-        label_line2 = tk.Label(frame_line2, textvariable=cc_timer.timevar_f, font=('微软雅黑', 20, 'bold'), fg="#FF0000", bg='white')
+        label_line2 = tk.Label(frame_line2, textvariable=turn_off_computer_timer.timevar_f, font=('微软雅黑', 20, 'bold'), fg="#FF0000", bg='white')
         label_line2.pack(side='left')
 
         label_after = tk.Label(frame_line2, text="后", font=('微软雅黑', 20, 'bold'), fg="#FF0000", bg='white')
@@ -640,13 +627,15 @@ def cc_window():  #定时关机功能
         bto_cancel_cc = tk.Button(window_ccc,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='取消关机', command=cancel_cc_cfm)
         bto_cancel_cc.pack(pady=5)
 
-def ssw_window():  #截图浏览界面
+        window_ccc.lift()
+
+def open_screenshot_viewing_window():  #截图浏览界面
     def refresh_circulate():
-        ssw.refresh()
-        ssw.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
+        screenshot_viewing_window.refresh()
+        screenshot_viewing_window.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
     
-    ssw = moretk.ScreenShotWindow(root, config["ss_path"])
-    ssw.show()
+    screenshot_viewing_window = picture_viewer.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
+    screenshot_viewing_window.show()
 
     refresh_circulate()
 
@@ -678,9 +667,23 @@ icon.tray_icon.run_detached()
 
 root.protocol('WM_DELETE_WINDOW', if_quit)
 
+if os.path.exists("config.json"):
+    config_read_json_encryption()  #仅启动时读取config
+else:
+    config_write_json_encryption()
+
+for key in default_config:  #校验config完整性与正确性
+    if key not in config:
+        config[key] = default_config[key]
+        config_write_json_encryption()
+    elif type(config[key]) != type(default_config[key]):
+        config[key] = default_config[key]
+        config_write_json_encryption()
+
+
 time_update_init()
 time_update()
-get_screen_init()
+screenshoter_init()
 get_screen()
 
 if os.path.exists(".\\monitor"):
