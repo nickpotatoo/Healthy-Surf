@@ -50,36 +50,45 @@ class PictureViewer(tk.Toplevel):
         self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)) #绑定滚轮滚动
         self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
 
-        self.delete_button = tk.Button(self, text="删除", bg='grey', fg='white', command=self._ask_if_delete, height=2, width=18, font=('微软雅黑', 15))
+        self.button_frame = tk.Frame(self)
+        self.button_frame.grid(row=1, column=0, pady=10)
+
+        self.delete_button = tk.Button(self.button_frame, text="删除", bg='grey', fg='white', command=self._ask_if_delete, height=2, width=18, font=('微软雅黑', 15)) #删除按钮
         self.delete_button.grid(row=1, column=0, pady=10)
 
+        self.refresh_button = tk.Button(self.button_frame, text="刷新", bg='grey', fg='white', command=self.refresh, height=2, width=18, font=('微软雅黑', 15)) #刷新按钮
+        self.refresh_button.grid(row=1, column=1, padx=10, pady=10)
+
+        self.notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 14), font_b=("微软雅黑", 10), command=lambda:self.notice.withdraw())
+
+        if "if_ask_delete_screenshot" not in self.config:
+            self.config['if_ask_delete_screenshot'] = True
+
+        if self.config['if_ask_delete_screenshot']:
+            self.confirm_window = moretk.CfmWindow(self, _title="删除确认", text="确认删除所选图片？", font_l=("微软雅黑", 13), font_b=("微软雅黑", 10), on_confirm = self._on_cfmwindow_confirm, confirm_button_text="确认", on_cancel= self._on_cfmwindow_cancel, cancel_button_text="取消", enable_check_button=True, check_button_text="不再提示")
+    
     def set_config(self):
+        """设置配置"""
         self.config['if_ask_delete_screenshot'] = not self.confirm_window.get_checkbutton_value()
         self.on_config_change_func()
     
-    def _on_mousewheel(self, event):
+    def _on_mousewheel(self, event): #鼠标滚轮滚动事件
         self.canvas.yview_scroll(-int(event.delta/120), "units")
 
+    def _on_cfmwindow_confirm(self): #确认删除所选图片
+        self._delete_chosen_picture()
+        self.set_config()
+        self.confirm_window.withdraw()
+
+    def _on_cfmwindow_cancel(self): #取消删除所选图片
+        self.set_config()
+        self.confirm_window.withdraw()
+
     def _ask_if_delete(self): #询问是否删除所选图片
-        def on_confirm():
-            self._delete_chosen_picture()
-            self.set_config()
-            self.confirm_window.destroy()
-            self.confirm_window = None
-
-        def on_cancel():
-            self.set_config()
-            self.confirm_window.destroy()
-            self.confirm_window = None
-
         if not self.chosen_picture:
-            notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 10), font_b=("微软雅黑", 10), command=lambda: notice.destroy())
-            notice.show()
+            self.notice.show()
         else:
-            if "if_ask_delete_screenshot" not in self.config:
-                self.config['if_ask_delete_screenshot'] = True
             if self.config['if_ask_delete_screenshot']:
-                self.confirm_window = moretk.CfmWindow(self, _title="删除确认", text="确认删除所选图片？", font_l=("微软雅黑", 10), font_b=("微软雅黑", 10), on_confirm = on_confirm, confirm_button_text="确认", on_cancel= on_cancel, cancel_button_text="取消", enable_check_button=True, check_button_text="不再提示")
                 self.confirm_window.show()
             else:
                 self._delete_chosen_picture()

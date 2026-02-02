@@ -130,27 +130,24 @@ def history_journal():   #用于图形界面查询历史
         htylist_insert()
         if if_circulate:
             root2.after(60000, lambda: htylist_refresh(True))
-        else:
-            pass
+
+    def ask_window_on_confirm():
+        nonlocal ask_window
+        htylist_delete()
+        if ask_window.get_checkbutton_value():
+            config['if_ask_delete_history'] = False
+            config_write_json_encryption()
+        ask_window.withdraw()
+
+    def ask_window_on_cancel():
+        nonlocal ask_window
+        if ask_window.get_checkbutton_value():
+            config['if_ask_delete_history'] = False
+            config_write_json_encryption()
+        ask_window.withdraw()
 
     def htylist_delete_ask_window():  #删除历史询问窗口
-        def ask_window_on_confirm():
-            nonlocal ask_window
-            htylist_delete()
-            if ask_window.get_checkbutton_value():
-                config['if_ask_delete_history'] = False
-                config_write_json_encryption()
-            ask_window.destroy()
-
-        def ask_window_on_cancel():
-            nonlocal ask_window
-            if ask_window.get_checkbutton_value():
-                config['if_ask_delete_history'] = False
-                config_write_json_encryption()
-            ask_window.destroy()
-
         if config['if_ask_delete_history']:
-            ask_window = moretk.CfmWindow(root2, text = "确认删除选中的历史记录？", font_b='微软雅黑', font_l='微软雅黑', on_cancel=ask_window_on_cancel, on_confirm=ask_window_on_confirm, enable_check_button=True, check_button_text="不再提示")
             ask_window.show()
         else:
             htylist_delete()
@@ -184,11 +181,21 @@ def history_journal():   #用于图形界面查询历史
     
     sb = tk.Scrollbar(root2, bd=2, width=30)
     sb.pack(side = 'right', fill= 'y' )
-    
-    bto2 = tk.Button(root2,bd=2,height=1,width=10,font='微软雅黑',bg='grey',fg='white',text='删除',command=htylist_delete_ask_window)
-    bto2.pack(side='bottom', pady= 50)
 
-    htylist = tk.Listbox(root2, yscrollcommand=sb.set, width= 662, height= 10, font=('微软雅黑', 14))    
+    button_frame = tk.Frame(root2)
+    
+    delete_button = tk.Button(button_frame, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white', text='删除', command=htylist_delete_ask_window)
+    delete_button.pack(side='left', padx= 5)
+
+    refresh_button = tk.Button(button_frame, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white', text='刷新', command=lambda:htylist_refresh(False))
+    refresh_button.pack(side='right', padx= 5)
+
+    button_frame.pack(side='bottom', pady=10)
+
+    htylist = tk.Listbox(root2, yscrollcommand=sb.set, width= 662, height= 15, font=('微软雅黑', 14))    
+
+    if config['if_ask_delete_history']:
+        ask_window = moretk.CfmWindow(root2, text = "确认删除选中的历史记录？", font_b='微软雅黑', font_l='微软雅黑', on_cancel=ask_window_on_cancel, on_confirm=ask_window_on_confirm, enable_check_button=True, check_button_text="不再提示")
     
     htylist_refresh(True)
     
