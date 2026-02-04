@@ -4,6 +4,167 @@ import moretk
 from typing import Callable
 from PIL import Image, ImageTk 
 
+class ImageTkViewing(tk.Toplevel):
+    def __init__(self, master=None, path: str = None, image_path_list: list = None):
+        super().__init__(master)
+        self._apply_high_quality = True
+        self.quality_timer = None
+
+        self.path = path
+        self.image = Image.open(self.path)
+        
+        self.scale = 1.0
+
+        tempt_list = self.path.split('\\')
+        list_len = len(tempt_list)
+
+        self.name = tempt_list[list_len-1]
+        self.title(self.name)
+        self.resizable(True, True)
+        self.geometry(f"{self.image.width}x{self.image.height+50}")
+
+        self.last_width = self.winfo_width()
+        self.last_height = self.winfo_height()
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
+        self.grid_rowconfigure(2, weight=0)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1,weight=0)
+
+        self.canvas = tk.Canvas(self, width=self.image.width, height=self.image.height)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.image_item = self.canvas.create_image(0,0,anchor='nw')  #展示图片
+
+        self.scrollbar_y = tk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
+        self.scrollbar_y.grid(row=0, column=1, sticky='ns')
+        self.scrollbar_x = tk.Scrollbar(self, orient='horizontal', command=self.canvas.xview)
+        self.scrollbar_x.grid(row=1, column=0, sticky='ew')
+        self.canvas.configure(yscrollcommand=self.scrollbar_y.set, xscrollcommand=self.scrollbar_x.set)
+
+        self.scrollbar_panel = tk.Frame(self, bg='white', width=self.scrollbar_y.winfo_width(), height=self.scrollbar_x.winfo_height())
+        self.scrollbar_panel.grid(row=1, column=1, sticky='nsew')
+        self.scrollbar_panel.grid_propagate(False)
+
+        self.bind("<Configure>", self._on_resize)
+        self.bind("<MouseWheel>", self._on_mousewheel)
+
+        self.canvas.bind("<ButtonPress-1>", lambda event: self.canvas.scan_mark(event.x, event.y))
+        self.canvas.bind("<B1-Motion>", lambda event: self.canvas.scan_dragto(event.x, event.y, gain=1))
+
+        self.bottom_panel = tk.Frame(self, bg='white', height=50)  #下方白色镶板
+        self.bottom_panel.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self.bottom_panel.grid_propagate(False) #防止被子控件撑大
+
+        self.button_frame = tk.Frame(self.bottom_panel, bg='white')
+        self.button_frame.place(relx=0.5, rely=0.5, anchor='center')
+
+        self.left_button = tk.Button(self.button_frame, text="←", width=5, bg='grey', fg='white')
+        self.left_button.pack(side='left', padx=10)
+
+        self.right_button = tk.Button(self.button_frame, text="→", width=5, bg='grey', fg='white')
+        self.right_button.pack(side='left', padx=10)
+        
+        self._scale_limit_decide()
+        self._update_image()
+
+        self.withdraw()
+
+    def _view_prev_image(self):
+        pass
+
+    def _view_next_image(self):
+        pass
+
+    def _scale_limit_decide(self):
+        self.scale_upper_limits = 4000/self.image.width
+        self.scale_lower_limits = 100/self.image.width
+
+    def _update_image(self): #更新并绘制图片
+        w = int(self.image.width * self.scale)
+        h = int(self.image.height * self.scale)
+
+        if not self._apply_high_quality:
+            resized = self.image.resize((w, h), Image.NEAREST)
+        else:
+            resized = self.image.resize((w, h), Image.LANCZOS)
+            
+        self.tk_image = ImageTk.PhotoImage(resized)
+
+        self.canvas.itemconfig(self.image_item, image = self.tk_image)
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+
+    def quality_shift(self): # 切换图片算法
+        self._apply_high_quality = True
+        self.quality_timer = None
+        self._update_image()
+
+    def _on_mousewheel(self, event):
+        x = self.canvas.canvasx(event.x) # 获取缩放前的鼠标在 Canvas 内容中的绝对坐标 (画布坐标)
+        y = self.canvas.canvasy(event.y)
+
+        old_scale = self.scale
+        if event.delta > 0:
+            self.scale *= 1.1
+        elif event.delta < 0:
+            self.scale *= 0.9
+
+        self.scale = max(self.scale_lower_limits, min(self.scale, self.scale_upper_limits))
+        
+        if old_scale == self.scale:
+            return
+        
+        self._apply_high_quality = False
+
+        self._update_image()
+
+        new_x = x * (self.scale / old_scale)  # 计算鼠标在缩放后的新坐标（比例缩放）
+        new_y = y * (self.scale / old_scale)
+
+        scroll_x = (new_x - event.x) / self.canvas.bbox("all")[2] # 让 new_x 减去鼠标在窗口中的偏移量 event.x，得到画布新的左上角位置,然后换算成 0.0 到 1.0 的百分比传给 moveto
+        scroll_y = (new_y - event.y) / self.canvas.bbox("all")[3]
+
+        self.canvas.xview_moveto(scroll_x)
+        self.canvas.yview_moveto(scroll_y)
+
+        if not self._apply_high_quality: # 使进行滚动缩放时采用低质量图片算法，静止200ms后恢复为高质量算法
+            if self.quality_timer:
+                self.after_cancel(self.quality_timer)
+            self.quality_timer = self.after(200, self.quality_shift)
+
+    def _on_resize(self, event):
+        if event.widget is not self:
+            return
+        
+        if self.last_width == self.winfo_width() and self.last_height == self.winfo_height():
+            return
+
+        self._apply_high_quality = False
+
+        self.last_width = self.winfo_width()
+        self.last_height = self.winfo_height()
+
+        scale_w = (event.width-self.scrollbar_y.winfo_width()) / self.image.width
+        scale_h = (event.height-50-self.scrollbar_x.winfo_height()) / self.image.height
+        self.scale = min(scale_w, scale_h)
+
+        self.scale = max(self.scale_lower_limits, self.scale)
+        self._update_image()
+
+        if not self._apply_high_quality: # 使进行拉伸界面缩放时采用低质量图片算法，静止200ms后恢复为高质量算法
+            if self.quality_timer:
+                self.after_cancel(self.quality_timer)
+            self.quality_timer = self.after(200, self.quality_shift)
+
+    def show(self):
+        if self.state() != 'withdrawn':
+            self.withdraw() 
+            self.deiconify()
+        else:
+            self.deiconify()
+        self.lift()
+
 class PictureViewer(tk.Toplevel):
     """浏览截图界面"""
     def __init__(self, master=None, path=None, config:dict=None, on_config_change_func:Callable=None, *args, **kwargs):
@@ -12,6 +173,7 @@ class PictureViewer(tk.Toplevel):
         if not path or not master or not on_config_change_func or config is None:
             raise ValueError("缺少参数")
 
+        self.picture_name_list = []
         self.picture_list = []
         self.picture_labels = []
         self.chosen_picture = None
@@ -115,7 +277,10 @@ class PictureViewer(tk.Toplevel):
         self.chosen_picture = event.widget
 
     def _on_label_double_click(self, event): #双击图片标签时执行
-        print("double clicked")
+        image_index = self.picture_labels.index(event.widget)
+        image_name = self.picture_name_list[image_index]
+        
+        viewer = ImageTkViewing(self, path=self.path + "\\" + image_name)
 
     def _build_image_frame(self): #构建图片显示区域
         self.picture_labels.clear()
@@ -167,12 +332,14 @@ class PictureViewer(tk.Toplevel):
 
     def _load_image(self):
         self.picture_list.clear()
+        self.picture_name_list.clear()
         for n in os.listdir(self.path):
             image = Image.open(self.path+"\\"+n)
             image = image.resize((250, 150))
             photo = ImageTk.PhotoImage(image)
             if n[:5] == 'hssp_':
                 self.picture_list.append(photo)
+            self.picture_name_list.append(n)
 
     def withdraw(self):
         """隐藏窗口"""
@@ -183,6 +350,7 @@ class PictureViewer(tk.Toplevel):
         for n in self.image_frame.winfo_children():
             n.destroy()
         
+        self.picture_name_list.clear()
         self.picture_list.clear()
         self.picture_labels.clear()
 

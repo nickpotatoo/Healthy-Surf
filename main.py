@@ -10,7 +10,7 @@ from pystray import Icon, MenuItem, Menu
 import os
 import json        #导入必要库
 
-version = "v0.1.1"
+version = "v1.2"
 SECRET_KEY = "potato_love"
 if_first_run = True
 time_date = "0"
