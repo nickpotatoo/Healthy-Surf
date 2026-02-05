@@ -4,32 +4,29 @@ import moretk
 from typing import Callable
 from PIL import Image, ImageTk 
 
-class ImageTkViewing(tk.Toplevel):
-    def __init__(self, master=None, path: str = None, image_path_list: list = None, before_shift_image: Callable = None):
+class OpenImage(tk.Toplevel):
+    def __init__(self, master=None, path: str = None, image_name:str = None,shift_image_call: Callable = None, delete_image_call: Callable = None):
         super().__init__(master)
         self._apply_high_quality = True
         self.quality_timer = None
 
         self.path = path
-        self.image = Image.open(self.path)
+        self.image_name = image_name
+        self.delete_image_call = delete_image_call
+        self.shift_image_call = shift_image_call
 
-        self.before_shift_image = before_shift_image
-        if image_path_list:
-            self.image_path_list = image_path_list
-            try:
-                self.image_index = self.image_path_list.index(self.path)
-            except:
-                raise ValueError("image_path_list中无法找到当前图片的路径")
+        self.image_list = []
+        self._image_list_update()
+        self.image_index = self.image_list.index(image_name)
         
         self.scale = 1.0
 
-        tempt_list = self.path.split('\\')
-        list_len = len(tempt_list)
-        self.name = tempt_list[list_len-1]
+        self.image = Image.open(self.path+"\\"+self.image_name)
 
-        self.title(self.name)
+        self.title(self.image_name)
         self.resizable(True, True)
-        self.geometry(f"{self.image.width}x{self.image.height+50}")
+        self.minsize(250,150)
+        self.geometry(f"{self.image.width+100}x{self.image.height+50}")
 
         self.last_width = self.winfo_width()
         self.last_height = self.winfo_height()
@@ -74,40 +71,74 @@ class ImageTkViewing(tk.Toplevel):
         self.right_button = tk.Button(self.button_frame, text="→", width=5, bg='grey', fg='white', command=self._view_next_image)
         self.right_button.pack(side='left', padx=10)
 
+        self.delete_image_button = tk.Button(self.bottom_panel, text="删除", width=5, bg='grey', fg='white', command=self._delete_image)
+        self.delete_image_button.place(relx=0.95, rely=0.5, anchor='e')
+
         self.bind("<Left>", lambda event: self._view_prev_image())
         self.bind("<Right>", lambda event: self._view_next_image())
+        self.bind("<Delete>", lambda event: self._delete_image())
         
-        self._scale_limit_decide()
+        self._scale_limit_update()
         self._update_image()
 
-    def _view_prev_image(self):
-        if self.before_shift_image:
-            self.before_shift_image()
+    def _delete_image(self):
+        if not self.image_list:
+            return
 
-        if self.image_path_list:
-            try:
-                self.image_index = self.image_path_list.index(self.path)
-            except:
-                raise ValueError("image_path_list中无法找到当前图片的路径")
+        delete_path = self.path + "\\" + self.image_name
+        delete_index = self.image_index
+        delete_name = self.image_name
+
+        try:
+            os.remove(delete_path)
+        except:
+            notice = moretk.NoticeWindow(self, _title = "删除失败", text = "删除失败", font_l = ('微软雅黑', 15), font_b=('微软雅黑', 10))
+            notice.show()
+        else:
+            self.image_list.pop(delete_index)
+
+            if self.image_list:
+                next_index = min(delete_index, len(self.image_list) - 1)
+                self.image_change(next_index)
+            else:
+                self.path = None
+                self.image = None
+                self.canvas.itemconfig(self.image_item, image=None)
+                self.canvas.delete("text")
+                self.canvas.create_text(self.winfo_width() / 2,self.winfo_height() / 2,text="无图片",font=('微软雅黑', 15),fill='black',tags="text")
+
+            if self.delete_image_call:
+                self.delete_image_call(delete_name)
+
+    def _view_prev_image(self):
+        if self.image_list:
+            shift_index = max(0, self.image_index-1)
+            shift_name = self.image_list[shift_index]
             
-            if self.image_index > 0:
-                self.image_change(self.image_path_list[self.image_index-1])
+            if shift_index != self.image_index:
+                self.image_change(shift_index)
+
+            if self.shift_image_call:
+                self.shift_image_call(shift_name)
 
     def _view_next_image(self):
-        if self.before_shift_image:
-            self.before_shift_image()
-
-        if self.image_path_list:
-            try:
-                self.image_index = self.image_path_list.index(self.path)
-            except:
-                raise ValueError("image_path_list中无法找到当前图片的路径")
+        if self.image_list:
+            shift_index = min(len(self.image_list)-1, self.image_index+1)
+            shift_name = self.image_list[shift_index]
             
-            if self.image_index < len(self.image_path_list) - 1:
-                self.image_change(self.image_path_list[self.image_index+1])
-                
+            if shift_index != self.image_index:
+                self.image_change(shift_index)
 
-    def _scale_limit_decide(self):
+            if self.shift_image_call:
+                self.shift_image_call(shift_name)
+
+    def _image_list_update(self):
+        self.image_list.clear()
+        for i in os.listdir(self.path):
+            if i[:5] == "hssp_":
+                self.image_list.append(i)
+                
+    def _scale_limit_update(self):
         self.scale_upper_limits = 4000/self.image.width
         self.scale_lower_limits = 100/self.image.width
 
@@ -124,6 +155,19 @@ class ImageTkViewing(tk.Toplevel):
 
         self.canvas.itemconfig(self.image_item, image = self.tk_image)
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
+
+    def image_change(self, index):
+        try:
+            self.image = Image.open(self.path + "\\" + self.image_list[index])
+            self.image_index = index
+            self.scale = 1
+            self.image_name = self.image_list[index]
+            self.title(self.image_name)
+            self._update_image()
+            self._scale_limit_update()
+            self.canvas.delete("text")
+        except:
+            raise ValueError("无效的图片路径或图片打开失败")
 
     def _quality_shift(self): # 切换图片算法
         self._apply_high_quality = True
@@ -187,18 +231,6 @@ class ImageTkViewing(tk.Toplevel):
                 self.after_cancel(self.quality_timer)
             self.quality_timer = self.after(200, self._quality_shift)
 
-    def image_change(self, path:str):
-        try:
-            self.image = Image.open(path)
-            self.path = path
-            self.image_index = self.image_path_list.index(self.path)
-            self.scale = 1
-            self.name = self.path.split('\\')[len(self.path.split('\\'))-1]
-            self.title(self.name)
-            self._update_image()
-        except:
-            raise ValueError("无效的图片路径或图片打开失败")
-
 class PictureViewer(tk.Toplevel):
     """浏览截图界面"""
     def __init__(self, master=None, path=None, config:dict=None, on_config_change_func:Callable=None, *args, **kwargs):
@@ -257,7 +289,7 @@ class PictureViewer(tk.Toplevel):
         self.refresh_button = tk.Button(self.button_frame, text="刷新", bg='grey', fg='white', command=self.refresh, height=2, width=18, font=('微软雅黑', 15)) #刷新按钮
         self.refresh_button.grid(row=1, column=1, padx=10, pady=10)
 
-        self.notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 14), font_b=("微软雅黑", 10), command=lambda:self.notice.withdraw())
+        self.none_picture_chosen_notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 14), font_b=("微软雅黑", 10), command=lambda:self.notice.withdraw())
 
         if "if_ask_delete_screenshot" not in self.config:
             self.config['if_ask_delete_screenshot'] = True
@@ -284,7 +316,7 @@ class PictureViewer(tk.Toplevel):
 
     def _ask_if_delete(self): #询问是否删除所选图片
         if not self.chosen_picture:
-            self.notice.show()
+            self.none_picture_chosen_notice.show()
         else:
             if self.config['if_ask_delete_screenshot']:
                 self.confirm_window.show()
@@ -295,7 +327,7 @@ class PictureViewer(tk.Toplevel):
         if self.chosen_picture:
             try:
                 index = self.picture_labels.index(self.chosen_picture)
-                image_name = os.listdir(self.path)[index]
+                image_name = self.picture_name_list[index]
                 os.remove(self.path + "\\" + image_name)
             except Exception as e:
                 notice = moretk.NoticeWindow(self, _title="错误", text="删除图片时出错！\n错误信息："+str(e), btext="确认", font_l=("微软雅黑", 10), font_b=("微软雅黑", 10), command=lambda: notice.destroy())
@@ -313,13 +345,7 @@ class PictureViewer(tk.Toplevel):
         self.chosen_picture = event.widget
 
     def _on_label_double_click(self, event): #双击图片标签时执行
-        image_index = self.picture_labels.index(event.widget)
-        image_name = self.picture_name_list[image_index]
-
-
-        self.picture_path_list = [self.path + '\\' + i for i in self.picture_name_list]
-        viewer = ImageTkViewing(self, path=self.path + "\\" + image_name, image_path_list=self.picture_path_list)
-        self.viewer_list.append(viewer)
+        v = OpenImage(self, self.path, self.picture_name_list[self.picture_labels.index(self.chosen_picture)])
 
     def _build_image_frame(self): #构建图片显示区域
         self.picture_labels.clear()
@@ -366,8 +392,6 @@ class PictureViewer(tk.Toplevel):
 
             self._load_image()
             self._build_image_frame()
-        else:
-            raise RuntimeError("窗口未显示，无法刷新！")
 
     def _load_image(self):
         self.picture_list.clear()
