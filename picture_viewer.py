@@ -5,20 +5,28 @@ from typing import Callable
 from PIL import Image, ImageTk 
 
 class ImageTkViewing(tk.Toplevel):
-    def __init__(self, master=None, path: str = None, image_path_list: list = None):
+    def __init__(self, master=None, path: str = None, image_path_list: list = None, before_shift_image: Callable = None):
         super().__init__(master)
         self._apply_high_quality = True
         self.quality_timer = None
 
         self.path = path
         self.image = Image.open(self.path)
+
+        self.before_shift_image = before_shift_image
+        if image_path_list:
+            self.image_path_list = image_path_list
+            try:
+                self.image_index = self.image_path_list.index(self.path)
+            except:
+                raise ValueError("image_path_list中无法找到当前图片的路径")
         
         self.scale = 1.0
 
         tempt_list = self.path.split('\\')
         list_len = len(tempt_list)
-
         self.name = tempt_list[list_len-1]
+
         self.title(self.name)
         self.resizable(True, True)
         self.geometry(f"{self.image.width}x{self.image.height+50}")
@@ -60,22 +68,44 @@ class ImageTkViewing(tk.Toplevel):
         self.button_frame = tk.Frame(self.bottom_panel, bg='white')
         self.button_frame.place(relx=0.5, rely=0.5, anchor='center')
 
-        self.left_button = tk.Button(self.button_frame, text="←", width=5, bg='grey', fg='white')
+        self.left_button = tk.Button(self.button_frame, text="←", width=5, bg='grey', fg='white', command=self._view_prev_image)
         self.left_button.pack(side='left', padx=10)
 
-        self.right_button = tk.Button(self.button_frame, text="→", width=5, bg='grey', fg='white')
+        self.right_button = tk.Button(self.button_frame, text="→", width=5, bg='grey', fg='white', command=self._view_next_image)
         self.right_button.pack(side='left', padx=10)
+
+        self.bind("<Left>", lambda event: self._view_prev_image())
+        self.bind("<Right>", lambda event: self._view_next_image())
         
         self._scale_limit_decide()
         self._update_image()
 
-        self.withdraw()
-
     def _view_prev_image(self):
-        pass
+        if self.before_shift_image:
+            self.before_shift_image()
+
+        if self.image_path_list:
+            try:
+                self.image_index = self.image_path_list.index(self.path)
+            except:
+                raise ValueError("image_path_list中无法找到当前图片的路径")
+            
+            if self.image_index > 0:
+                self.image_change(self.image_path_list[self.image_index-1])
 
     def _view_next_image(self):
-        pass
+        if self.before_shift_image:
+            self.before_shift_image()
+
+        if self.image_path_list:
+            try:
+                self.image_index = self.image_path_list.index(self.path)
+            except:
+                raise ValueError("image_path_list中无法找到当前图片的路径")
+            
+            if self.image_index < len(self.image_path_list) - 1:
+                self.image_change(self.image_path_list[self.image_index+1])
+                
 
     def _scale_limit_decide(self):
         self.scale_upper_limits = 4000/self.image.width
@@ -95,7 +125,7 @@ class ImageTkViewing(tk.Toplevel):
         self.canvas.itemconfig(self.image_item, image = self.tk_image)
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
 
-    def quality_shift(self): # 切换图片算法
+    def _quality_shift(self): # 切换图片算法
         self._apply_high_quality = True
         self.quality_timer = None
         self._update_image()
@@ -131,7 +161,7 @@ class ImageTkViewing(tk.Toplevel):
         if not self._apply_high_quality: # 使进行滚动缩放时采用低质量图片算法，静止200ms后恢复为高质量算法
             if self.quality_timer:
                 self.after_cancel(self.quality_timer)
-            self.quality_timer = self.after(200, self.quality_shift)
+            self.quality_timer = self.after(200, self._quality_shift)
 
     def _on_resize(self, event):
         if event.widget is not self:
@@ -155,15 +185,19 @@ class ImageTkViewing(tk.Toplevel):
         if not self._apply_high_quality: # 使进行拉伸界面缩放时采用低质量图片算法，静止200ms后恢复为高质量算法
             if self.quality_timer:
                 self.after_cancel(self.quality_timer)
-            self.quality_timer = self.after(200, self.quality_shift)
+            self.quality_timer = self.after(200, self._quality_shift)
 
-    def show(self):
-        if self.state() != 'withdrawn':
-            self.withdraw() 
-            self.deiconify()
-        else:
-            self.deiconify()
-        self.lift()
+    def image_change(self, path:str):
+        try:
+            self.image = Image.open(path)
+            self.path = path
+            self.image_index = self.image_path_list.index(self.path)
+            self.scale = 1
+            self.name = self.path.split('\\')[len(self.path.split('\\'))-1]
+            self.title(self.name)
+            self._update_image()
+        except:
+            raise ValueError("无效的图片路径或图片打开失败")
 
 class PictureViewer(tk.Toplevel):
     """浏览截图界面"""
@@ -179,6 +213,8 @@ class PictureViewer(tk.Toplevel):
         self.chosen_picture = None
         self.config = config
         self.on_config_change_func = on_config_change_func
+
+        self.viewer_list = []
 
         self.master = master
         self.path = path
@@ -279,8 +315,11 @@ class PictureViewer(tk.Toplevel):
     def _on_label_double_click(self, event): #双击图片标签时执行
         image_index = self.picture_labels.index(event.widget)
         image_name = self.picture_name_list[image_index]
-        
-        viewer = ImageTkViewing(self, path=self.path + "\\" + image_name)
+
+
+        self.picture_path_list = [self.path + '\\' + i for i in self.picture_name_list]
+        viewer = ImageTkViewing(self, path=self.path + "\\" + image_name, image_path_list=self.picture_path_list)
+        self.viewer_list.append(viewer)
 
     def _build_image_frame(self): #构建图片显示区域
         self.picture_labels.clear()
