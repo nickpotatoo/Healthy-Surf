@@ -72,7 +72,10 @@ class OpenImage(tk.Toplevel):
         self.right_button.pack(side='left', padx=10)
 
         self.delete_image_button = tk.Button(self.bottom_panel, text="删除", width=5, bg='grey', fg='white', command=self._delete_image)
-        self.delete_image_button.place(relx=0.95, rely=0.5, anchor='e')
+        self.delete_image_button.place(relx=0.97, rely=0.5, anchor='e')
+
+        self.refresh_button = tk.Button(self.bottom_panel, text="刷新", width=5, bg='grey', fg='white', command=self._refresh)
+        self.refresh_button.place(relx=0.03, rely=0.5, anchor='w')
 
         self.bind("<Left>", lambda event: self._view_prev_image())
         self.bind("<Right>", lambda event: self._view_next_image())
@@ -81,36 +84,51 @@ class OpenImage(tk.Toplevel):
         self._scale_limit_update()
         self._update_image()
 
-    def _delete_image(self):
+    def _refresh(self):
+        print(233)
+        self._image_list_update()
         if not self.image_list:
-            return
-
-        delete_path = self.path + "\\" + self.image_name
-        delete_index = self.image_index
-        delete_name = self.image_name
+            self.destroy()
 
         try:
-            os.remove(delete_path)
+            image_index = self.image_list.index(self.image_name)
+            flag = True # 当当前图片还存在时，返回True
         except:
-            notice = moretk.NoticeWindow(self, _title = "删除失败", text = "删除失败", font_l = ('微软雅黑', 15), font_b=('微软雅黑', 10))
-            notice.show()
-        else:
-            self.image_list.pop(delete_index)
+            image_index = min(len(self.image_list)-1, self.image_index)
+            flag = False # 当当前图片不存在时，返回False
 
-            if self.image_list:
-                next_index = min(delete_index, len(self.image_list) - 1)
-                self.image_change(next_index)
+        if image_index != self.image_index or self.image_list[image_index] != self.image_name:
+            self.image_change(image_index)
+
+        return flag
+
+    def _delete_image(self): # 删除图片按钮调用
+        if self._refresh():
+            delete_path = self.path + "\\" + self.image_name
+            delete_index = self.image_index
+            delete_name = self.image_name
+
+            try:
+                os.remove(delete_path)
+            except:
+                notice = moretk.NoticeWindow(self, _title = "删除失败", text = "删除失败", font_l = ('微软雅黑', 15), font_b=('微软雅黑', 10), command=lambda:notice.destroy())
+                notice.show()
+                self._image_list_update()
+                self.image_change(0)
             else:
-                self.path = None
-                self.image = None
-                self.canvas.itemconfig(self.image_item, image=None)
-                self.canvas.delete("text")
-                self.canvas.create_text(self.winfo_width() / 2,self.winfo_height() / 2,text="无图片",font=('微软雅黑', 15),fill='black',tags="text")
+                self.image_list.pop(delete_index)
 
-            if self.delete_image_call:
-                self.delete_image_call(delete_name)
+                if self.delete_image_call:
+                    self.delete_image_call(delete_name)
 
-    def _view_prev_image(self):
+                if self.image_list:
+                    next_index = min(delete_index, len(self.image_list) - 1)
+                    self.image_change(next_index)
+                else:
+                    self.destroy()
+
+    def _view_prev_image(self): # 切换至上一张图片
+        self._refresh()
         if self.image_list:
             shift_index = max(0, self.image_index-1)
             shift_name = self.image_list[shift_index]
@@ -121,7 +139,8 @@ class OpenImage(tk.Toplevel):
             if self.shift_image_call:
                 self.shift_image_call(shift_name)
 
-    def _view_next_image(self):
+    def _view_next_image(self): # 切换至下一张图片
+        self._refresh()
         if self.image_list:
             shift_index = min(len(self.image_list)-1, self.image_index+1)
             shift_name = self.image_list[shift_index]
@@ -132,13 +151,13 @@ class OpenImage(tk.Toplevel):
             if self.shift_image_call:
                 self.shift_image_call(shift_name)
 
-    def _image_list_update(self):
+    def _image_list_update(self): # 更新list
         self.image_list.clear()
         for i in os.listdir(self.path):
             if i[:5] == "hssp_":
                 self.image_list.append(i)
                 
-    def _scale_limit_update(self):
+    def _scale_limit_update(self): # 更新scale的极限
         self.scale_upper_limits = 4000/self.image.width
         self.scale_lower_limits = 100/self.image.width
 
@@ -156,7 +175,7 @@ class OpenImage(tk.Toplevel):
         self.canvas.itemconfig(self.image_item, image = self.tk_image)
         self.canvas.config(scrollregion=self.canvas.bbox("all"))
 
-    def image_change(self, index):
+    def image_change(self, index): # 切换显示的图片
         try:
             self.image = Image.open(self.path + "\\" + self.image_list[index])
             self.image_index = index
@@ -165,7 +184,6 @@ class OpenImage(tk.Toplevel):
             self.title(self.image_name)
             self._update_image()
             self._scale_limit_update()
-            self.canvas.delete("text")
         except:
             raise ValueError("无效的图片路径或图片打开失败")
 
@@ -207,7 +225,7 @@ class OpenImage(tk.Toplevel):
                 self.after_cancel(self.quality_timer)
             self.quality_timer = self.after(200, self._quality_shift)
 
-    def _on_resize(self, event):
+    def _on_resize(self, event): # 当窗口大小改变时调用
         if event.widget is not self:
             return
         
@@ -289,7 +307,7 @@ class PictureViewer(tk.Toplevel):
         self.refresh_button = tk.Button(self.button_frame, text="刷新", bg='grey', fg='white', command=self.refresh, height=2, width=18, font=('微软雅黑', 15)) #刷新按钮
         self.refresh_button.grid(row=1, column=1, padx=10, pady=10)
 
-        self.none_picture_chosen_notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 14), font_b=("微软雅黑", 10), command=lambda:self.notice.withdraw())
+        self.none_picture_chosen_notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 14), font_b=("微软雅黑", 10), command=lambda:self.none_picture_chosen_notice.withdraw())
 
         if "if_ask_delete_screenshot" not in self.config:
             self.config['if_ask_delete_screenshot'] = True
@@ -332,9 +350,20 @@ class PictureViewer(tk.Toplevel):
             except Exception as e:
                 notice = moretk.NoticeWindow(self, _title="错误", text="删除图片时出错！\n错误信息："+str(e), btext="确认", font_l=("微软雅黑", 10), font_b=("微软雅黑", 10), command=lambda: notice.destroy())
                 notice.show()
+                self.chosen_picture = None
+                self.refresh()
+            else:
+                self.chosen_picture = None
+                self.refresh()
+                self._viewer_list_refresh()
+                if not self.picture_list:
+                    for i in self.viewer_list:
+                        i.destroy()
+                else:
+                    for i in self.viewer_list:
+                        if i.image_name == image_name:
+                            i._refresh()
 
-            self.chosen_picture = None
-            self.refresh()
         else:
             raise RuntimeError("chosen_picture为空，无法删除！")
 
@@ -345,7 +374,24 @@ class PictureViewer(tk.Toplevel):
         self.chosen_picture = event.widget
 
     def _on_label_double_click(self, event): #双击图片标签时执行
-        v = OpenImage(self, self.path, self.picture_name_list[self.picture_labels.index(self.chosen_picture)])
+        image_name = self.picture_name_list[self.picture_labels.index(self.chosen_picture)]
+
+        self._viewer_list_refresh()
+
+        for i in self.viewer_list:
+            if i.image_name == image_name:
+                i.lift()
+                return
+
+        viewer = OpenImage(self, self.path, image_name, delete_image_call=lambda d_n:(self.refresh(), self.viewer.lift()))
+
+        self.viewer_list.append(viewer)
+        
+
+    def _viewer_list_refresh(self):
+        for i in self.viewer_list:
+            if i not in self.winfo_children():
+                self.viewer_list.remove(i)
 
     def _build_image_frame(self): #构建图片显示区域
         self.picture_labels.clear()
