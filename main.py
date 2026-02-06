@@ -320,13 +320,15 @@ def screenshoter_config_update():
     screenshoter.quality = config['ss_quality']
 
     root.after_cancel(screenshot_timer)
+    screenshot_timer = None
     get_screen()
 
 def get_screen():  #主程序中使用截屏
     global screenshot_timer
     screenshoter.screenshot()
     screenshoter.picture_clean()
-    screenshot_timer = root.after(config['ss_shotgap'], get_screen)
+    if config['ss_shotgap'] != 0:
+        screenshot_timer = root.after(config['ss_shotgap'], get_screen)
 
 def config_write_json_encryption():   #用于将config中数值以加密的json格式写入本地
     global config
@@ -495,8 +497,8 @@ def open_config_window():  #显示配置界面
         config_window.configure(bg='white')
         config_window.resizable(False, False)
 
-        screenshot_gap_list_real = [5*1000, 30*1000, 60*1000, 5*60*1000, 15*60*1000]
-        screenshot_gap_list = ['5秒', '30秒', '1分钟', '5分钟', '15分钟']
+        screenshot_gap_list_real = [0, 5*1000, 30*1000, 60*1000, 5*60*1000, 15*60*1000]
+        screenshot_gap_list = ['关闭', '5秒', '30秒', '1分钟', '5分钟', '15分钟']
         screenshot_gap_textcombobox = moretk.TextComboBox(config_window, text="截屏间隔", font_l=('微软雅黑', 14),font_c=('微软雅黑', 12), values=screenshot_gap_list, bg="white")
         screenshot_gap_textcombobox.current(next(i for i, v in enumerate(screenshot_gap_list_real) if v == config["ss_shotgap"]))
         screenshot_gap_textcombobox.pack(pady=10)
@@ -683,22 +685,20 @@ def cc_window():  #定时关机功能
         turn_off_computer_window.lift()
 
 def open_screenshot_viewing_window():  #截图浏览界面
-    global screenshot_window
-    def refresh_circulate():
-        global screenshot_window
-        screenshot_window.refresh()
-        screenshot_window.after(int(config["ss_shotgap"]), lambda: refresh_circulate())
-
+    global screenshot_window, screenshot_timer
     def when_delete_window():
-        global screenshot_window
+        global screenshot_window, screenshot_timer
         screenshot_window.destroy()
         screenshot_window = None
+
+        screenshot_timer = root.after(config["ss_shotgap"], get_screen)
 
     if not screenshot_window:
         screenshot_window = picture_viewer.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
         screenshot_window.show()
 
-        refresh_circulate()
+        root.after_cancel(screenshot_timer)
+        screenshot_timer = None
 
         screenshot_window.protocol("WM_DELETE_WINDOW", when_delete_window)
     else:
