@@ -78,9 +78,31 @@ def load_history_json_encryption():   #读取或创建加密的本地历史文�
         for k, v in history_c.items():
             history[int(k)] = v
     except Exception as e:
-            print("读取 history.json 出错:", e)
-            history.clear()
-            history[time_date] = "0"
+        print("读取 history.json 出错:", e, "尝试读取备份")
+        load_history_backup_encryption()
+
+def load_history_backup_encryption():
+    backup_path = os.getenv('LOCALAPPDATA') + "\\Healthy Surf\\history_backup.json"
+    try:
+        history_c = encryption.decrypt_file(backup_path, SECRET_KEY)
+        if str(time_date) not in history_c:
+            history_c[str(time_date)] = history[time_date] 
+        history.clear()
+        for k, v in history_c.items():
+            history[int(k)] = v
+    except Exception as e:
+        print("读取备份出错:", e)
+        history.clear()
+        history[time_date] = "0"
+    else:
+        history_write_json_encryption()
+
+def history_backup_encryption():
+    global history
+    local_appdata_path = os.getenv('LOCALAPPDATA')
+    if not os.path.exists(local_appdata_path+"\\Healthy Surf"):
+        os.mkdir(local_appdata_path+"\\Healthy Surf")
+    encryption.encrypt_file(history, local_appdata_path+"\\Healthy Surf\\history_backup.json", SECRET_KEY)
 
 def history_write_json_encryption():  #将history以加密的json格式写入本地
     global history
@@ -89,6 +111,7 @@ def history_write_json_encryption():  #将history以加密的json格式写入本
     if admin_mode:
         with open('.\\history_decrypt.json', 'w', newline='') as file:
             json.dump(history, file, indent=4)
+    history_backup_encryption()
 
 def check_history():
     global time_date
@@ -302,33 +325,53 @@ def password(event_f):  # 用于密码确认
     if admin_mode:  #管理员模式，跳过密码检查
         password_check()
 
-def config_read_json_encryption(): #用于读取加密的配置文件
-    global config
-    
-    try:
-        config = encryption.decrypt_file("config.json", SECRET_KEY)
-    except:
-        config = default_config
-
 def screenshoter_init():
     global screenshoter
     screenshoter = screenshot.Screenshoter(path=config['ss_path'], max_amount=config['ss_max_amount'], quality=config['ss_quality'])
 
 def screenshoter_config_update():
+    global screenshoter, screenshot_timer
     screenshoter.path = config['ss_path']
     screenshoter.max_amount = config['ss_max_amount']
     screenshoter.quality = config['ss_quality']
 
-    root.after_cancel(screenshot_timer)
-    screenshot_timer = None
+    if screenshot_timer:
+        root.after_cancel(screenshot_timer)
+        screenshot_timer = None
     get_screen()
 
 def get_screen():  #主程序中使用截屏
     global screenshot_timer
-    screenshoter.screenshot()
-    screenshoter.picture_clean()
-    if config['ss_shotgap'] != 0:
+    if config['ss_shotgap'] > 0:
+        screenshoter.screenshot()
+        screenshoter.picture_clean()
         screenshot_timer = root.after(config['ss_shotgap'], get_screen)
+
+def config_read_json_encryption(): #用于读取加密的配置文件
+    global config
+    try:
+        config = encryption.decrypt_file("config.json", SECRET_KEY)
+    except Exception as e:
+        print("读取配置出错：", e, "尝试读取备份")
+        load_config_backup()
+
+def load_config_backup():
+    global config
+    try:
+        backup_path = os.getenv('LOCALAPPDATA') + "\\Healthy Surf\\config_backup.json"
+        config = encryption.decrypt_file(backup_path, SECRET_KEY)
+    except Exception as e:
+        print("读取备份出错：", e)
+        config = default_config
+    else:
+        config_write_json_encryption()
+
+def config_backup_encryption():
+    global config
+    local_appdata_path = os.getenv('LOCALAPPDATA')
+    if not os.path.exists(local_appdata_path+"\\Healthy Surf"):
+        os.mkdir(local_appdata_path+"\\Healthy Surf")
+    encryption.encrypt_file(config, local_appdata_path+"\\Healthy Surf\\config_backup.json", SECRET_KEY)
 
 def config_write_json_encryption():   #用于将config中数值以加密的json格式写入本地
     global config
@@ -337,6 +380,8 @@ def config_write_json_encryption():   #用于将config中数值以加密的json�
     if admin_mode:
         with open('.\\config_decrypt.json', 'w', newline='') as file:
             json.dump(config, file, indent=4)
+
+    config_backup_encryption()
 
 def open_config_window():  #显示配置界面
     global config_window
@@ -697,8 +742,9 @@ def open_screenshot_viewing_window():  #截图浏览界面
         screenshot_window = picture_viewer.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
         screenshot_window.show()
 
-        root.after_cancel(screenshot_timer)
-        screenshot_timer = None
+        if screenshot_timer:
+            root.after_cancel(screenshot_timer)
+            screenshot_timer = None
 
         screenshot_window.protocol("WM_DELETE_WINDOW", when_delete_window)
     else:
@@ -750,6 +796,9 @@ time_update_init()
 time_update()
 screenshoter_init()
 get_screen()
+
+config_backup_encryption()
+history_backup_encryption()
 
 if os.path.exists(".\\monitor"):
     with open(".\\monitor", "r") as file:
