@@ -85,10 +85,10 @@ class OpenImage(tk.Toplevel):
         self._update_image()
 
     def _refresh(self):
-        print(233)
         self._image_list_update()
         if not self.image_list:
             self.destroy()
+            return
 
         try:
             image_index = self.image_list.index(self.image_name)
@@ -161,7 +161,7 @@ class OpenImage(tk.Toplevel):
         self.scale_upper_limits = 4000/self.image.width
         self.scale_lower_limits = 100/self.image.width
 
-    def _update_image(self): #更新并绘制图片
+    def _update_image(self): # 更新并绘制图片
         w = int(self.image.width * self.scale)
         h = int(self.image.height * self.scale)
 
@@ -184,8 +184,8 @@ class OpenImage(tk.Toplevel):
             self.title(self.image_name)
             self._update_image()
             self._scale_limit_update()
-        except:
-            raise ValueError("无效的图片路径或图片打开失败")
+        except Exception as e:
+            raise e
 
     def _quality_shift(self): # 切换图片算法
         self._apply_high_quality = True
@@ -261,10 +261,13 @@ class PictureViewer(tk.Toplevel):
         self.picture_list = []
         self.picture_labels = []
         self.chosen_picture = None
+        self.chosen_picture_list = []
         self.config = config
         self.on_config_change_func = on_config_change_func
 
         self.viewer_list = []
+
+        self.batch_delete_mode = False
 
         self.master = master
         self.path = path
@@ -281,7 +284,7 @@ class PictureViewer(tk.Toplevel):
         self.frame.grid_rowconfigure(0, weight=1)
         self.frame.grid_columnconfigure(0, weight=1)
 
-        self.canvas = tk.Canvas(self.frame, bg='white', width=850, height=500)
+        self.canvas = tk.Canvas(self.frame, bg='white')
         self.canvas.grid(row=0, column=0, sticky="nsew")
 
         self.image_frame = tk.Frame(self.canvas, bg='white')
@@ -301,11 +304,16 @@ class PictureViewer(tk.Toplevel):
         self.button_frame = tk.Frame(self)
         self.button_frame.grid(row=1, column=0, pady=10)
 
-        self.delete_button = tk.Button(self.button_frame, text="删除", bg='grey', fg='white', command=self._ask_if_delete, height=2, width=18, font=('微软雅黑', 15)) #删除按钮
-        self.delete_button.grid(row=1, column=0, pady=10)
+        self.delete_button = tk.Button(self.button_frame, text="删除", bg='grey', fg='white', command=self._ask_if_delete, height=1, width=16, font=('微软雅黑', 15)) #删除按钮
+        self.delete_button.grid(row=1, column=1, pady=10)
 
-        self.refresh_button = tk.Button(self.button_frame, text="刷新", bg='grey', fg='white', command=self.refresh, height=2, width=18, font=('微软雅黑', 15)) #刷新按钮
-        self.refresh_button.grid(row=1, column=1, padx=10, pady=10)
+        self.refresh_button = tk.Button(self.button_frame, text="刷新", bg='grey', fg='white', command=self.refresh, height=1, width=16, font=('微软雅黑', 15)) #刷新按钮
+        self.refresh_button.grid(row=1, column=0, padx=10, pady=10)
+
+        self.batch_delete_button = tk.Button(self.button_frame, text="批量删除", bg='grey', fg='white', command=self._on_batch_delete_button, height=1, width=16, font=('微软雅黑', 15)) #批量删除按钮
+        self.batch_delete_button.grid(row=1, column=2, padx=10, pady=10)
+
+        self.batch_delete_cancel_button = tk.Button(self.button_frame, text="取消", bg='grey', fg='white', command=self._on_batch_delete_cancel_button, height=1, width=16, font=('微软雅黑', 15)) #取消删除按钮
 
         self.none_picture_chosen_notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 14), font_b=("微软雅黑", 10), command=lambda:self.none_picture_chosen_notice.withdraw())
 
@@ -332,8 +340,22 @@ class PictureViewer(tk.Toplevel):
         self.set_config()
         self.confirm_window.withdraw()
 
+    def _on_batch_delete_button(self): #点击批量删除按钮
+        self.batch_delete_mode = True
+        self.refresh()
+        self.chosen_picture_list.clear()
+        self.batch_delete_button.grid_forget()
+        self.batch_delete_cancel_button.grid(row=1, column=2, padx=10, pady=10)
+
+    def _on_batch_delete_cancel_button(self): #点击取消批量删除按钮
+        self.batch_delete_mode = False
+        self.refresh()
+        self.chosen_picture_list.clear()
+        self.batch_delete_cancel_button.grid_forget()
+        self.batch_delete_button.grid(row=1, column=2, padx=10, pady=10)
+
     def _ask_if_delete(self): #询问是否删除所选图片
-        if not self.chosen_picture:
+        if (not self.batch_delete_mode and not self.chosen_picture) or (self.batch_delete_mode and not self.chosen_picture_list):
             self.none_picture_chosen_notice.show()
         else:
             if self.config['if_ask_delete_screenshot']:
@@ -342,52 +364,80 @@ class PictureViewer(tk.Toplevel):
                 self._delete_chosen_picture()
 
     def _delete_chosen_picture(self):  #删除所选图片
-        if self.chosen_picture:
-            try:
-                index = self.picture_labels.index(self.chosen_picture)
-                image_name = self.picture_name_list[index]
-                os.remove(self.path + "\\" + image_name)
-            except Exception as e:
-                notice = moretk.NoticeWindow(self, _title="错误", text="删除图片时出错！\n错误信息："+str(e), btext="确认", font_l=("微软雅黑", 10), font_b=("微软雅黑", 10), command=lambda: notice.destroy())
-                notice.show()
-                self.chosen_picture = None
-                self.refresh()
+        if not self.batch_delete_mode:
+            if self.chosen_picture:
+                try:
+                    index = self.picture_labels.index(self.chosen_picture)
+                    image_name = self.picture_name_list[index]
+                    os.remove(self.path + "\\" + image_name)
+                except Exception as e:
+                    notice = moretk.NoticeWindow(self, _title="错误", text="删除"+image_name+"时出错！\n错误信息："+str(e), btext="确认", font_l=("微软雅黑", 10), font_b=("微软雅黑", 10), command=lambda: notice.destroy())
+                    notice.show()
+                    self.chosen_picture = None
+                    self.refresh()
+                else:
+                    self.chosen_picture = None
+                    self.refresh()
+                    self._viewer_list_refresh()
+                    if not self.picture_list:
+                        for i in self.viewer_list:
+                            i.destroy()
+                    else:
+                        for i in self.viewer_list:
+                            if i.image_name == image_name:
+                                i._refresh()
+
             else:
-                self.chosen_picture = None
-                self.refresh()
+                raise RuntimeError("chosen_picture为空，无法删除！")
+        else:
+            if self.chosen_picture_list:
+                for i in self.chosen_picture_list:
+                    if os.path.exists(self.path + "\\" + i):
+                        try:
+                            os.remove(self.path + "\\" + i)
+                        except Exception as e:
+                            notice = moretk.NoticeWindow(self, _title="错误", text="删除"+i+"时出错！\n错误信息："+str(e), btext="确认", font_l=("微软雅黑", 10), font_b=("微软雅黑", 10), command=lambda: notice.destroy())
+                            notice.show()
                 self._viewer_list_refresh()
                 if not self.picture_list:
                     for i in self.viewer_list:
                         i.destroy()
                 else:
                     for i in self.viewer_list:
-                        if i.image_name == image_name:
+                        if i.image_name in self.chosen_picture_list:
                             i._refresh()
-
-        else:
-            raise RuntimeError("chosen_picture为空，无法删除！")
+                self.refresh()
+                self.chosen_picture_list.clear()
 
     def _on_label_click(self, event): #单击图片标签时执行
-        if self.chosen_picture and self.chosen_picture != event.widget:
-            self.chosen_picture.config(bg='white')
-        event.widget.config(bg='lightblue')
-        self.chosen_picture = event.widget
+        if not self.batch_delete_mode:
+            if self.chosen_picture and self.chosen_picture != event.widget:
+                self.chosen_picture.config(bg='white')
+            event.widget.config(bg='lightblue')
+            self.chosen_picture = event.widget
+        else:
+            if event.widget.cget("bg") == 'white':
+                event.widget.config(bg='lightblue')
+                self.chosen_picture_list.append(self.picture_name_list[self.picture_labels.index(event.widget)])
+            else:
+                event.widget.config(bg='white')
+                self.chosen_picture_list.remove(self.picture_name_list[self.picture_labels.index(event.widget)])
 
     def _on_label_double_click(self, event): #双击图片标签时执行
-        image_name = self.picture_name_list[self.picture_labels.index(self.chosen_picture)]
+        if not self.batch_delete_mode:
+            image_name = self.picture_name_list[self.picture_labels.index(self.chosen_picture)]
 
-        self._viewer_list_refresh()
+            self._viewer_list_refresh()
 
-        for i in self.viewer_list:
-            if i.image_name == image_name:
-                i.lift()
-                return
+            for i in self.viewer_list:
+                if i.image_name == image_name:
+                    i.lift()
+                    return
 
-        viewer = OpenImage(self, self.path, image_name, delete_image_call=lambda d_n:(self.refresh(), self.viewer.lift()))
+            viewer = OpenImage(self, self.path, image_name, delete_image_call=lambda d_n:(self.refresh(), self.viewer.lift()))
 
-        self.viewer_list.append(viewer)
+            self.viewer_list.append(viewer)
         
-
     def _viewer_list_refresh(self):
         for i in self.viewer_list:
             if i not in self.winfo_children():
@@ -428,16 +478,14 @@ class PictureViewer(tk.Toplevel):
 
     def refresh(self):
         """刷新窗口内容"""
-        if self.state() != 'withdrawn':
-            self.lift()
+        for n in self.image_frame.winfo_children():
+            n.destroy()
 
-            for n in self.image_frame.winfo_children():
-                n.destroy()
+        self.chosen_picture = None
+        self.chosen_picture_list.clear()
 
-            self.chosen_picture = None
-
-            self._load_image()
-            self._build_image_frame()
+        self._load_image()
+        self._build_image_frame()
 
     def _load_image(self):
         self.picture_list.clear()

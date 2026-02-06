@@ -10,7 +10,7 @@ from pystray import Icon, MenuItem, Menu
 import os
 import json        #导入必要库
 
-version = "v1.2"
+version = "v1.3"
 SECRET_KEY = "potato_love"
 if_first_run = True
 time_date = "0"
@@ -428,8 +428,8 @@ def open_config_window():  #显示配置界面
             
     def config_update():  #用于关闭时将修改后的数值写入config
         config['ss_path'] = screenshot_path_inputbox.path_get()
-        config['ss_max_amount'] = screenshot_quality_list_real[screenshot_max_amount_textcombobox.current()]
-        config['ss_quality'] = screenshot_max_amount_list_real[screenshot_quality_textcombobox.current()]
+        config['ss_max_amount'] = screenshot_max_amount_list_real[screenshot_max_amount_textcombobox.current()]
+        config['ss_quality'] = screenshot_quality_list_real[screenshot_quality_textcombobox.current()]
         config['ss_shotgap'] = screenshot_gap_list_real[screenshot_gap_textcombobox.current()]
         if pwdk_c_window.changed_password:    
             config['password_key'] = pwdk_c_window.changed_password
