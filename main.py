@@ -68,6 +68,36 @@ def run_timer():   #计时器，用于更新monitor文件
     safe_write(".\\monitor", "b" + str(time.time()))
     root.after(10000, run_timer)
 
+def load_json(if_encryption:bool, path:str, SECRET_KEY):
+    if if_encryption and not SECRET_KEY:
+        raise ValueError("解密需要密钥")
+    if not os.path.exists(path):
+        raise FileNotFoundError("path不存在")
+    try:
+        if if_encryption:
+            res_dict = encryption.decrypt_file(path, SECRET_KEY)
+        else:
+            with open(path, 'r') as file:
+                content = file.read()
+                res_dict = json.load(content)
+        return res_dict
+    except Exception as e:
+        raise e
+
+def write_json(if_encryption:bool, path:str, save_file:dict, SECRET_KEY):
+    if if_encryption and not SECRET_KEY:
+        raise ValueError("加密需要密钥")
+    try:
+        if if_encryption:
+            res_dict = encryption.encrypt_file(save_file, path, SECRET_KEY)
+        else:
+            temp_file = path+".path"
+            with open(temp_file, 'w') as file:
+                json.dump(config, file, indent=4)
+            os.replace(temp_file, path)
+    except Exception as e:
+        raise e
+
 def load_history_json_encryption():   #读取或创建加密的本地历史文件，将结果保存为字典history
     global history, time_date
     try:
@@ -102,15 +132,15 @@ def history_backup_encryption():
     local_appdata_path = os.getenv('LOCALAPPDATA')
     if not os.path.exists(local_appdata_path+"\\Healthy Surf"):
         os.mkdir(local_appdata_path+"\\Healthy Surf")
-    encryption.encrypt_file(history, local_appdata_path+"\\Healthy Surf\\history_backup.json", SECRET_KEY)
+    write_json(True, local_appdata_path+"\\Healthy Surf\\history_backup.json", history, SECRET_KEY)
 
 def history_write_json_encryption():  #将history以加密的json格式写入本地
     global history
-    encryption.encrypt_file(history, "history.json", SECRET_KEY)
+    write_json(True, ".\\history.json", history, SECRET_KEY)
 
     if admin_mode:
-        with open('.\\history_decrypt.json', 'w', newline='') as file:
-            json.dump(history, file, indent=4)
+        write_json(False, ".\\history_encryption.json", history, SECRET_KEY)
+
     history_backup_encryption()
 
 def check_history():
@@ -350,7 +380,7 @@ def get_screen():  #主程序中使用截屏
 def config_read_json_encryption(): #用于读取加密的配置文件
     global config
     try:
-        config = encryption.decrypt_file("config.json", SECRET_KEY)
+        config = load_json(True, ".\\config", SECRET_KEY)
     except Exception as e:
         print("读取配置出错：", e, "尝试读取备份")
         load_config_backup()
@@ -359,7 +389,7 @@ def load_config_backup():
     global config
     try:
         backup_path = os.getenv('LOCALAPPDATA') + "\\Healthy Surf\\config_backup.json"
-        config = encryption.decrypt_file(backup_path, SECRET_KEY)
+        config = load_json(True, backup_path, SECRET_KEY)
     except Exception as e:
         print("读取备份出错：", e)
         config = default_config
@@ -371,15 +401,14 @@ def config_backup_encryption():
     local_appdata_path = os.getenv('LOCALAPPDATA')
     if not os.path.exists(local_appdata_path+"\\Healthy Surf"):
         os.mkdir(local_appdata_path+"\\Healthy Surf")
-    encryption.encrypt_file(config, local_appdata_path+"\\Healthy Surf\\config_backup.json", SECRET_KEY)
+    write_json(True, local_appdata_path+"\\Healthy Surf\\config_backup.json", config, SECRET_KEY)
 
 def config_write_json_encryption():   #用于将config中数值以加密的json格式写入本地
     global config
-    encryption.encrypt_file(config, "config.json", SECRET_KEY)
+    write_json(True, ".\\config.json", config, SECRET_KEY)
 
     if admin_mode:
-        with open('.\\config_decrypt.json', 'w', newline='') as file:
-            json.dump(config, file, indent=4)
+        write_json(False, ".\\config_encryption.json", config, SECRET_KEY)
 
     config_backup_encryption()
 
