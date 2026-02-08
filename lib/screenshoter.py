@@ -3,7 +3,8 @@ import math
 import datetime
 from PIL import ImageGrab
 
-class Screenshoter:
+class Screenshot:
+    """截屏类，负责截屏，提供接口供ScreenShoter调用，并管理图片质量处理和图片清理"""
     def __init__(self, path:str, max_amount:int, quality:int):
         self.picture_list = []
         self.picture_cache = None
@@ -78,6 +79,59 @@ class Screenshoter:
             i -= 1
         return i
     
+class ScreenShoter:
+    """截屏器类，单例化，负责管理截屏器对象，提供接口供主程序调用，并管理配置更新和截屏循环"""
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """单例化"""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self, master, config):
+        """初始化"""
+        self._master = master
+        self.config = config
+        self._screenshot_timer = None
+
+        self._screenshot = Screenshot(path=self.config['ss_path'], max_amount=self.config['ss_max_amount'], quality=self.config['ss_quality'])
+
+        self.get_screen()
+
+    def cancel_screenshot_circulate(self):
+        """取消截图循环"""
+        if not self._screenshot_timer is None:
+            self._master.after_cancel(self._screenshot_timer)
+            self._screenshot_timer = None
+
+    def config_update(self):
+        """更新配置"""
+        self._screenshot.path = self.config['ss_path']
+        self._screenshot.max_amount = self.config['ss_max_amount']
+        self._screenshot.quality = self.config['ss_quality']
+
+        if self._screenshot_timer:
+            self._master.after_cancel(self._screenshot_timer)
+            self._screenshot_timer = None
+        self.get_screen()
+
+    def get_screen(self, if_circulate:bool = True):
+        """截屏并进入循环"""
+        if self.config['ss_shotgap'] > 0:
+            self._screenshot.screenshot()
+            self._screenshot.picture_clean()
+            if if_circulate:
+                self._screenshot_timer = self._master.after(self.config['ss_shotgap'], self.get_screen)
+
+    def if_circulate(self):
+        """是否在循环"""
+        if self._screenshot_timer is None:
+            flag = False
+        else:
+            flag = True
+        return flag
+    
 if __name__ == "__main__":
 
     import time
@@ -89,7 +143,7 @@ if __name__ == "__main__":
         quality = 1     # 图像缩放质量倍数
 
         # 创建对象
-        shooter = Screenshoter(save_path, max_pics, quality)
+        shooter = Screenshot(save_path, max_pics, quality)
 
         # 连续截图 5 次，每次间隔 1 秒
         for i in range(5):

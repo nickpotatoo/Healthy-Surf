@@ -1,8 +1,5 @@
 import tkinter as tk
-import screenshot
-import moretk
-import picture_viewer
-import encryption
+from lib import *
 from datetime import datetime
 import time
 from PIL import Image
@@ -31,13 +28,15 @@ history = default_history
 if_turn_off_computer = False
 turn_off_computer_timer = None
 admin_mode = False
-screenshoter = None
-screenshot_timer = None
 
-history_window = None
+screenshoter_instance = None
+screenshot_viewer_instance = None
+
+history_recorder_instance = None
+history_manager_instance = None
+
 config_window = None
 turn_off_computer_window = None
-screenshot_window = None
 
 class oIcon:  #程序托盘图标
     def __init__(self, master):
@@ -75,7 +74,7 @@ def load_json(if_encryption:bool, path:str, SECRET_KEY):
         raise FileNotFoundError("path不存在")
     try:
         if if_encryption:
-            res_dict = encryption.decrypt_file(path, SECRET_KEY)
+            res_dict = json_encrypt.decrypt_file(path, SECRET_KEY)
         else:
             with open(path, 'r') as file:
                 content = file.read()
@@ -89,7 +88,7 @@ def write_json(if_encryption:bool, path:str, save_file:dict, SECRET_KEY):
         raise ValueError("加密需要密钥")
     try:
         if if_encryption:
-            res_dict = encryption.encrypt_file(save_file, path, SECRET_KEY)
+            res_dict = json_encrypt.encrypt_file(save_file, path, SECRET_KEY)
         else:
             temp_file = path+".path"
             with open(temp_file, 'w') as file:
@@ -97,177 +96,6 @@ def write_json(if_encryption:bool, path:str, save_file:dict, SECRET_KEY):
             os.replace(temp_file, path)
     except Exception as e:
         raise e
-
-def load_history_json_encryption():   #读取或创建加密的本地历史文件，将结果保存为字典history
-    global history, time_date
-    try:
-        history_c = encryption.decrypt_file("history.json", SECRET_KEY)
-        if str(time_date) not in history_c:
-            history_c[str(time_date)] = history[time_date] 
-        history.clear()
-        for k, v in history_c.items():
-            history[int(k)] = v
-    except Exception as e:
-        print("读取 history.json 出错:", e, "尝试读取备份")
-        load_history_backup_encryption()
-
-def load_history_backup_encryption():
-    backup_path = os.getenv('LOCALAPPDATA') + "\\Healthy Surf\\history_backup.json"
-    try:
-        history_c = encryption.decrypt_file(backup_path, SECRET_KEY)
-        if str(time_date) not in history_c:
-            history_c[str(time_date)] = history[time_date] 
-        history.clear()
-        for k, v in history_c.items():
-            history[int(k)] = v
-    except Exception as e:
-        print("读取备份出错:", e)
-        history.clear()
-        history[time_date] = "0"
-    else:
-        history_write_json_encryption()
-
-def history_backup_encryption():
-    global history
-    local_appdata_path = os.getenv('LOCALAPPDATA')
-    if not os.path.exists(local_appdata_path+"\\Healthy Surf"):
-        os.mkdir(local_appdata_path+"\\Healthy Surf")
-    write_json(True, local_appdata_path+"\\Healthy Surf\\history_backup.json", history, SECRET_KEY)
-
-def history_write_json_encryption():  #将history以加密的json格式写入本地
-    global history
-    write_json(True, ".\\history.json", history, SECRET_KEY)
-
-    if admin_mode:
-        write_json(False, ".\\history_encryption.json", history, SECRET_KEY)
-
-    history_backup_encryption()
-
-def check_history():
-    global time_date
-    if not time_date in history:
-        history[time_date] = "0"
-
-def time_update_init():
-    global total_time, time_date
-    if os.path.exists('history.json'):
-        load_history_json_encryption()
-    else:
-        history_write_json_encryption()
-    check_history()
-    total_time = int(history[time_date])
-
-def time_update():
-    global total_time, time_date
-    if not if_first_run:
-        total_time += 5
-    history[time_date] = str(total_time)
-    history_write_json_encryption()
-    gap_hour = total_time // 3600
-    gap_min = total_time % 3600 // 60
-    gap_sec = total_time % 60
-    lab1_var.set('您今日已累计使用电脑%d小时，%d分钟，%d秒' %(gap_hour, gap_min, gap_sec))
-    root.after(5000, time_update)
-
-def history_journal():   #用于图形界面查询历史
-    global history, time_date, history_window
-    def history_list_refresh(if_circulate):  #对查询界面5秒一刷新
-        nonlocal history_key
-        history_list.delete(0,tk.END)
-        history_key = {}
-        history_list_insert()
-        if if_circulate:
-            history_list.after(60000, lambda: history_list_refresh(True))
-
-    def ask_window_on_confirm():
-        nonlocal ask_window
-        history_list_delete()
-        if ask_window.get_checkbutton_value():
-            config['if_ask_delete_history'] = False
-            config_write_json_encryption()
-        ask_window.withdraw()
-
-    def ask_window_on_cancel():
-        nonlocal ask_window
-        if ask_window.get_checkbutton_value():
-            config['if_ask_delete_history'] = False
-            config_write_json_encryption()
-        ask_window.withdraw()
-
-    def history_list_delete_ask_window():  #删除历史询问窗口
-        if config['if_ask_delete_history']:
-            ask_window.show()
-        else:
-            history_list_delete()
-    
-    def history_list_delete():  #删除选中的本地历史并初始化
-        global total_time, time_date
-        nonlocal history_key
-        n, *args = history_list.curselection()
-        key_f = history_key[n]
-        if key_f != time_date:
-            del history[key_f]
-        else:
-            history[key_f] = '0'
-            total_time = 0
-        lab1_var.set('您今日已累计使用电脑0小时，0分钟，0秒')    
-        history_write_json_encryption()
-        history_list_refresh(False)
-
-    def history_list_insert():  #将历史写入查询界面
-        nonlocal history_key
-        i=0
-        for key in history:
-            time_f = int(history[key])
-            gap_hour = time_f // 3600
-            gap_min = time_f % 3600 // 60
-            gap_sec = time_f % 60
-            v = '%s:%d小时%d分钟%d秒'%(key, gap_hour, gap_min, gap_sec)
-            history_list.insert(i,v)
-            history_key[i] = key
-            i += 1
-
-    def when_history_window_close():
-        global history_window
-        history_window.destroy()
-        history_window = None
-
-    if not history_window:
-        history_window = tk.Toplevel()
-        history_window.title('使用历史')
-        history_window.geometry('662x400')
-        history_window.configure(bg='white')
-        history_window.resizable(False, False)
-        history_key = {}
-
-        history_window.lift()
-        
-        sb = tk.Scrollbar(history_window, bd=2, width=30)
-        sb.pack(side = 'right', fill= 'y' )
-
-        button_frame = tk.Frame(history_window)
-        
-        delete_button = tk.Button(button_frame, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white', text='删除', command=history_list_delete_ask_window)
-        delete_button.pack(side='left', padx= 5)
-
-        refresh_button = tk.Button(button_frame, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white', text='刷新', command=lambda:history_list_refresh(False))
-        refresh_button.pack(side='right', padx= 5)
-
-        button_frame.pack(side='bottom', pady=10)
-
-        history_list = tk.Listbox(history_window, yscrollcommand=sb.set, width= 662, height= 15, font=('微软雅黑', 14))    
-
-        if config['if_ask_delete_history']:
-            ask_window = moretk.CfmWindow(history_window, text = "确认删除选中的历史记录？", font_b='微软雅黑', font_l='微软雅黑', on_cancel=ask_window_on_cancel, on_confirm=ask_window_on_confirm, enable_check_button=True, check_button_text="不再提示")
-        
-        history_list_refresh(True)
-        
-        history_list.pack()
-
-        history_window.protocol("WM_DELETE_WINDOW", when_history_window_close)
-    
-    else:
-        history_window.lift()
 
 def if_quit():  #询问退出选项
     def quit_straight():  #选择直接退出
@@ -315,7 +143,7 @@ def password(event_f):  # 用于密码确认
                     icon.tray_icon.stop()
                     root.destroy()
                 elif event_f == 1:  #显示历史界面
-                    history_journal()
+                    open_history_manager_window()
                     root3.destroy()  
                 elif event_f == 2:   #显示配置界面
                     open_config_window()
@@ -324,7 +152,7 @@ def password(event_f):  # 用于密码确认
                     cc_window()
                     root3.destroy()
                 elif event_f ==4:  #显示截图浏览界面
-                    open_screenshot_viewing_window()
+                    open_screenshot_viewer_window()
                     root3.destroy()
             elif shur1.get() == 'admin':  #管理员模式
                 admin_mode = True
@@ -355,32 +183,10 @@ def password(event_f):  # 用于密码确认
     if admin_mode:  #管理员模式，跳过密码检查
         password_check()
 
-def screenshoter_init():
-    global screenshoter
-    screenshoter = screenshot.Screenshoter(path=config['ss_path'], max_amount=config['ss_max_amount'], quality=config['ss_quality'])
-
-def screenshoter_config_update():
-    global screenshoter, screenshot_timer
-    screenshoter.path = config['ss_path']
-    screenshoter.max_amount = config['ss_max_amount']
-    screenshoter.quality = config['ss_quality']
-
-    if screenshot_timer:
-        root.after_cancel(screenshot_timer)
-        screenshot_timer = None
-    get_screen()
-
-def get_screen():  #主程序中使用截屏
-    global screenshot_timer
-    if config['ss_shotgap'] > 0:
-        screenshoter.screenshot()
-        screenshoter.picture_clean()
-        screenshot_timer = root.after(config['ss_shotgap'], get_screen)
-
 def config_read_json_encryption(): #用于读取加密的配置文件
     global config
     try:
-        config = load_json(True, ".\\config", SECRET_KEY)
+        config = load_json(True, ".\\config.json", SECRET_KEY)
     except Exception as e:
         print("读取配置出错：", e, "尝试读取备份")
         load_config_backup()
@@ -516,7 +322,7 @@ def open_config_window():  #显示配置界面
         else:
             config['if_quit_judge'] = -1
 
-        screenshoter_config_update()
+        screenshoter_instance.config_update()
 
     def if_save():  # 确认保存界面
         global config_window
@@ -683,7 +489,6 @@ def cc_window():  #定时关机功能
         global turn_off_computer_window
         turn_off_computer_window.destroy()
         turn_off_computer_window = None
-        print(1)
 
     if not turn_off_computer_window:
         if not if_turn_off_computer:
@@ -758,26 +563,39 @@ def cc_window():  #定时关机功能
     else:
         turn_off_computer_window.lift()
 
-def open_screenshot_viewing_window():  #截图浏览界面
-    global screenshot_window, screenshot_timer
+def open_screenshot_viewer_window():  #截图浏览界面
+    global screenshot_viewer_instance
     def when_delete_window():
-        global screenshot_window, screenshot_timer
-        screenshot_window.destroy()
-        screenshot_window = None
+        global screenshot_viewer_instance
+        screenshot_viewer_instance.destroy()
+        screenshot_viewer_instance = None
 
-        screenshot_timer = root.after(config["ss_shotgap"], get_screen)
+        if not screenshoter_instance.if_circulate():
+            screenshoter_instance.get_screen()
 
-    if not screenshot_window:
-        screenshot_window = picture_viewer.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
-        screenshot_window.show()
+    if not screenshot_viewer_instance:
+        screenshot_viewer_instance = screenshoter_instance.PictureViewer(root, config["ss_path"], config, config_write_json_encryption)
 
-        if screenshot_timer:
-            root.after_cancel(screenshot_timer)
-            screenshot_timer = None
+        screenshoter_instance.cancel_screenshot_circulate()
 
-        screenshot_window.protocol("WM_DELETE_WINDOW", when_delete_window)
+        screenshot_viewer_instance.protocol("WM_DELETE_WINDOW", when_delete_window)
     else:
-        screenshot_window.lift()
+        screenshot_viewer_instance.lift()
+
+def open_history_manager_window():
+    global history_manager_instance, history_recorder_instance
+    def when_delete_window():
+        global history_manager_instance
+        history_manager_instance.destroy()
+        history_manager_instance = None
+
+    if not history_manager_instance:
+        history_manager_instance = history_manager.HistoryManager(root, config, history_recorder=history_recorder_instance, when_config_change=config_write_json_encryption)
+
+        history_manager_instance.protocol("WM_DELETE_WINDOW", when_delete_window)
+    else:
+        history_manager_instance.lift()
+
 
 root = tk.Tk()
 root.title(f'健康上网{version}')
@@ -787,20 +605,20 @@ root.resizable(False, False)
 root.iconphoto(False, tk.PhotoImage(file='icon.png'))
 root.lift()
 
-lab1_var = tk.StringVar()
-lab1_var.set('None')
+history_label = tk.Label(root, font=('微软雅黑', 14), fg="#000000", bg='white')
+history_label.place(relx=0.5, rely=0.45, anchor='center')
 
-lab1 = tk.Label(root, textvariable=lab1_var, font=('微软雅黑', 14), fg="#000000", bg='white')
-lab1.place(x=331, y=175, anchor='center')
+history_button = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='历史',command=lambda : password(1))
+history_button.place(relx=0.95, rely=0.05, anchor='ne')
 
-bto1 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='历史',command=lambda : password(1))
-bto1.place(x=557, y=35, anchor='center')
-bto4 = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='设置',command=lambda : password(2))
-bto4.place(x=105, y=35, anchor='center')
-bto_cc = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时关机',command=lambda : password(3))
-bto_cc.place(x=105, y=365, anchor='center')
-bto_ssw = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='截屏预览',command=lambda : password(4))
-bto_ssw.place(x=557, y=365, anchor='center')
+config_button = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='设置',command=lambda : password(2))
+config_button.place(relx=0.05, rely=0.05, anchor='nw')
+
+computer_turn_off_button = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='定时关机',command=lambda : password(3))
+computer_turn_off_button.place(relx=0.05, rely=0.95, anchor='sw')
+
+screenshot_button = tk.Button(root,bd=2,height=1,width=15,font='微软雅黑',bg='grey',fg='white',text='截屏预览',command=lambda : password(4))
+screenshot_button.place(relx=0.95, rely=0.95, anchor='se')
 
 icon = oIcon(root)
 icon.tray_icon.run_detached()
@@ -820,14 +638,12 @@ for key in default_config:  #校验config完整性与正确性
         config[key] = default_config[key]
         config_write_json_encryption()
 
+history_recorder_instance = history_manager.HistoryRecorder(root) # 实例化历史记录管理器，并将历史记录绑定到界面显示
+history_label.configure(textvariable=history_recorder_instance.get())
 
-time_update_init()
-time_update()
-screenshoter_init()
-get_screen()
+screenshoter_instance = screenshoter.ScreenShoter(root, config) # 实例化截屏管理器
 
 config_backup_encryption()
-history_backup_encryption()
 
 if os.path.exists(".\\monitor"):
     with open(".\\monitor", "r") as file:

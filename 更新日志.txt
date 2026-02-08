@@ -109,14 +109,22 @@ v-1.3
 	解决了检测config被修改后只是将config设置回默认值的问题，现在会优先采用备份回档
 v-1.4
 	新增了一些和json读写有关的函数
+	对整体的文件结构进行大改：
+		新增lib
+		将picture_viewer更名为screenshot_viewer并重写变量名，使其规范化
+		将encryption库更名为json_ecrypt，加入json读写备份内容
+		将screenshot库更名为screenshoter，对内部类进行调整，加入了ScreenShoter类，由其进行截屏以及相关管理
+		新增history_manager库，将history相关内容移入其中
+		优化history相关逻辑，增强性能
+		修复了0点后history仍然会在前一日的基础上进行计数的bug（这问题不会从v0.8就存在吧...）
 	
 待解决问题:
 	似乎run模式下运行存在并没有最小化、需要退出两次的问题
 未来可能添加功能：
+	更好的历史使用时长功能
+	优化截图算法
 	更好的管理员模式
 	更多设置
-	统一时间计数器
 	流量统计
 	更新日志优化（软件内阅读）
-	历史记录
-	更好的历史使用时长功能
+	浏览网站历史记录
