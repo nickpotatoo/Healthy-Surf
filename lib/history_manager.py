@@ -4,10 +4,14 @@ from datetime import datetime
 from . import moretk
 from . import json_encrypt
 
-SECRET_KEY = "potato_love"
-
 class HistoryRecorder:
-    """进行历史记录与保存以及提供管理接口"""
+    """进行历史记录与保存以及提供管理接口，单例模式"""
+    _instance = None
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
     def __init__(self, master):
         self._master = master
         self._history = {} # 如果值为list则为[int:总时间, int:0点-1点时间, int:1点-2点时间,...]，如果值为str则为总时间
@@ -30,7 +34,7 @@ class HistoryRecorder:
     def load_history(self):
         """加载历史记录"""
         self._history.clear()
-        self._history = json_encrypt.load_json(file_name="history.json", SECRET_KEY=SECRET_KEY, default={self._time_date: [0 for i in range(25)]})
+        self._history = json_encrypt.load_json(file_name="history.json", SECRET_KEY=json_encrypt.SECRET_KEY, default={self._time_date: [0 for i in range(25)]})
 
         if self._time_date in self._history.keys():
             if type(self._history[self._time_date]) == list:
@@ -46,7 +50,7 @@ class HistoryRecorder:
 
     def write_history(self):
         """写入历史记录"""
-        json_encrypt.write_json(save_file_name="history.json", save_file=self._history, SECRET_KEY=SECRET_KEY)
+        json_encrypt.write_json(save_file_name="history.json", save_file=self._history, SECRET_KEY=json_encrypt.SECRET_KEY)
 
     def _timer_tick(self, if_circulate:bool = True): # 对总时间进行增加并写入历史记录，if_circulate表示是否循环调用
         """计时器滴答"""
@@ -116,7 +120,7 @@ class HistoryRecorder:
             self.write_history()
 
 class HistoryManager(tk.Toplevel):
-    """历史记录管理界面，搭配HistoryRecorder使用"""
+    """提供历史记录管理界面，搭配HistoryRecorder使用"""
     def __init__(self, master, config:dict, history_recorder:HistoryRecorder, when_config_change:callable = None, when_history_delete:callable = None):
         super().__init__(master)
         self._master = master

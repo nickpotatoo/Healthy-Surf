@@ -9,9 +9,6 @@ import json        #导入必要库
 
 version = "v1.3"
 SECRET_KEY = "potato_love"
-if_first_run = True
-time_date = "0"
-total_time = 0
 default_config = {'ss_path':R'.\screenshot', 
                   'ss_max_amount': 100, 
                   'ss_quality': 1, 
@@ -22,9 +19,6 @@ default_config = {'ss_path':R'.\screenshot',
                   'if_ask_delete_screenshot': True}
 config = default_config
 default_hide = False
-time_date = int(datetime.now().strftime('%Y%m%d'))
-default_history = {time_date: "0"}
-history = default_history
 if_turn_off_computer = False
 turn_off_computer_timer = None
 admin_mode = False
@@ -652,8 +646,6 @@ if os.path.exists(".\\monitor"):
             default_hide = True
 
 run_timer()
-
-if_first_run = False
 
 if default_hide:
     root.withdraw()

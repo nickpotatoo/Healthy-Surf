@@ -115,8 +115,11 @@ v-1.4
 		将encryption库更名为json_ecrypt，加入json读写备份内容
 		将screenshot库更名为screenshoter，对内部类进行调整，加入了ScreenShoter类，由其进行截屏以及相关管理
 		新增history_manager库，将history相关内容移入其中
+		新增部分接口，为后续开发提供帮助
 		优化history相关逻辑，增强性能
 		修复了0点后history仍然会在前一日的基础上进行计数的bug（这问题不会从v0.8就存在吧...）
+		新增config_manager库，将config相关内容移入其中
+		实现ConfigManage类，为管理config提供帮助
 	
 待解决问题:
 	似乎run模式下运行存在并没有最小化、需要退出两次的问题
