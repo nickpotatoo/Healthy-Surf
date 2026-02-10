@@ -120,12 +120,15 @@ v-1.4
 		修复了0点后history仍然会在前一日的基础上进行计数的bug（这问题不会从v0.8就存在吧...）
 		新增config_manager库，将config相关内容移入其中
 		实现ConfigManage类，为管理config提供帮助
+		moretk中增加PasswordChangeWindow类，弃用原有main中PasswordChange类
+		现在密码并未更改时不会询问是否保存配置了
+		修复了一些bug（希望没修出新的...）
+		优化截图算法
 	
 待解决问题:
 	似乎run模式下运行存在并没有最小化、需要退出两次的问题
 未来可能添加功能：
 	更好的历史使用时长功能
-	优化截图算法
 	更好的管理员模式
 	更多设置
 	流量统计

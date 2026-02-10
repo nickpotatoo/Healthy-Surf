@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import filedialog
 from tkinter import ttk
-from typing import Literal
+from typing import Callable, Literal
 
 class ToolTip:  #提示框
     def __init__(self, widget, font="TkDefaultFont", textvariable:tk.StringVar=None, text='',judge=True, wraplength=500):
@@ -491,6 +491,89 @@ class NoticeWindow(tk.Toplevel):
         else:
             self.deiconify()
         self.lift()
+
+    def reset_command(self, command):
+        """重置按钮的command属性"""
+        self.command = command
+        self.bto.config(command=self.command)
+        self.unbind("<Return>")
+        self.bind("<Return>", lambda event : self.command())
+
+class PasswordCangeWindow(tk.Toplevel):  #用于修改密码
+    """修改密码界面"""
+    def __init__(self, master, password:str, when_password_changed_callback:Callable = None, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self._master = master
+        self.password = password
+        self._when_password_changed_callback = when_password_changed_callback
+
+        self.title('修改密码')
+        self.geometry('500x350')
+        self.configure(bg='white')
+        self.resizable(False, False)
+        self.lift()
+
+        self.label_1 = tk.Label(self,  text='请输入原密码', font=('微软雅黑', 18), fg="#000000", bg='white')
+        self.entry_1 = tk.Entry(self, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
+        self.entry_1.bind("<Return>", lambda event : self.check_input())
+
+        self.label_2 = tk.Label(self,  text='请输入新密码', font=('微软雅黑', 18), fg="#000000", bg='white')
+        self.entry_2 = tk.Entry(self, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
+        self.entry_2.bind("<Return>", lambda event : self.check_input())
+
+        self.label_3 = tk.Label(self,  text='请重复输入新密码', font=('微软雅黑', 18), fg="#000000", bg='white')
+        self.entry_3 = tk.Entry(self, width=15, font=('微软雅黑', 16), fg='black', borderwidth=1, justify='left', bg="#E5E5E5")
+        self.entry_3.bind("<Return>", lambda event : self.check_input())
+
+        self.confirm_button = tk.Button(self, bd=2, height=1, width=10, font='微软雅黑', bg='grey', fg='white',text='确认', command=self.check_input)
+        self.confirm_button.bind("<Return>", lambda event : self.check_input())
+
+        self.notice_text = tk.StringVar()
+        self.notice_text.set("None")
+        self.notice = NoticeWindow(self, _title = "错误！", textvariable = self.notice_text, font_l=('微软雅黑', 14), font_b=('微软雅黑', 10), command=lambda : self.notice.withdraw())
+
+        self.label_1.pack(pady=5)
+        self.entry_1.pack(pady=5)
+        self.label_2.pack(pady=5)
+        self.entry_2.pack(pady=5)
+        self.label_3.pack(pady=5)
+        self.entry_3.pack(pady=5)
+        self.confirm_button.pack(pady=10)
+
+    def check_input(self):
+        if not(self.entry_1.get()):
+            self.notice_text.set("请输入原密码！")
+            self.notice.show()
+        elif self.entry_1.get() != self.password:
+            self.notice_text.set("请输入正确的原密码！")
+            self.notice.show()
+            self.entry_1.delete(0, tk.END)
+        elif not(self.entry_2.get()):
+            self.notice_text.set("请输入新密码！")
+            self.notice.show()
+        elif not(self.entry_3.get()):
+            self.notice_text.set("请重复输入新密码！")
+            self.notice.show()
+        elif self.entry_3.get() != self.entry_2.get():
+            self.notice_text.set("两次输入的新密码不一致！")
+            self.notice.show()
+            self.entry_2.delete(0, tk.END)
+            self.entry_3.delete(0, tk.END)
+        else:
+            self.password = str(self.entry_3.get())
+            self.notice_text.set("密码修改成功！")
+            self.notice.show()
+            self.entry_1.delete(0, tk.END)
+            self.entry_2.delete(0, tk.END)
+            self.entry_3.delete(0, tk.END)
+
+            self.notice.reset_command(self.destroy)
+
+            if self._when_password_changed_callback:
+                self._when_password_changed_callback(self.password)
+
+    def get_password(self):
+        return self.password
 
 if __name__ == '__main__':
     root = tk.Tk()

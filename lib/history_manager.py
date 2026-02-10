@@ -1,5 +1,6 @@
 import tkinter as tk
 from datetime import datetime
+from typing import Callable
 
 from . import moretk
 from . import json_encrypt
@@ -121,17 +122,15 @@ class HistoryRecorder:
 
 class HistoryManager(tk.Toplevel):
     """提供历史记录管理界面，搭配HistoryRecorder使用"""
-    def __init__(self, master, config:dict, history_recorder:HistoryRecorder, when_config_change:callable = None, when_history_delete:callable = None):
+    def __init__(self, master, if_ask_delete_history:bool=True, history_recorder:HistoryRecorder=None, when_config_change_call:Callable = None, when_history_delete:callable = None):
         super().__init__(master)
         self._master = master
         self._history_recorder = history_recorder
-        self._when_config_change = when_config_change
+        self._when_config_change_call = when_config_change_call
         self._when_history_delete = when_history_delete
         self._history = self._history_recorder.get_history()
 
-        self.config = config
-        if "if_ask_delete_history" not in self.config.keys():
-            self.config['if_ask_delete_history'] = True
+        self.if_ask_delete_history = if_ask_delete_history
 
         self.title('使用历史')
         self.geometry('662x400')
@@ -155,7 +154,7 @@ class HistoryManager(tk.Toplevel):
 
         self._history_listbox = tk.Listbox(self, yscrollcommand=self._scollbar.set, width= 662, height= 15, font=('微软雅黑', 14))    
 
-        if self.config['if_ask_delete_history']:
+        if self.if_ask_delete_history:
             self._ask_window = moretk.CfmWindow(self, text = "确认删除选中的历史记录？", font_b='微软雅黑', font_l='微软雅黑', on_cancel=self._ask_window_on_cancel, on_confirm=self._ask_window_on_confirm, enable_check_button=True, check_button_text="不再提示")
         
         self.history_listbox_refresh_all(True)
@@ -193,21 +192,21 @@ class HistoryManager(tk.Toplevel):
         """确认删除历史记录"""
         self._history_listbox_delete()
         if self._ask_window.get_checkbutton_value():
-            self.config['if_ask_delete_history'] = False
-            self._when_config_change()
+            self.if_ask_delete_history = False
+            self._when_config_change_call(self.if_ask_delete_history)
         self._ask_window.withdraw()
 
     def _ask_window_on_cancel(self):
         """取消删除历史记录"""
         if self._ask_window.get_checkbutton_value():
-            self.config['if_ask_delete_history'] = False
-            self._when_config_change()
+            self.if_ask_delete_history = False
+            self._when_config_change_call(self.if_ask_delete_history)
         self._ask_window.withdraw()
 
     def _on_delete_button(self):
         """删除按钮被点击"""
         if self._history_listbox.curselection():
-            if self.config['if_ask_delete_history']:
+            if self.if_ask_delete_history:
                 self._ask_window.show()
             else:
                 self._history_listbox_delete()

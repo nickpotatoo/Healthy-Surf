@@ -83,7 +83,7 @@ def decrypt_file(input_path: str, key_str: str) -> dict:
     except json.JSONDecodeError:
         raise ValueError("解密成功但内容非 JSON（可能密钥错误）")
     
-def load_json(file_name:str, SECRET_KEY, if_backup:bool=True, default:dict=None, if_encryption:bool = True, path:str=".\\"):
+def load_json(file_name:str, SECRET_KEY=None, if_backup:bool=True, default:dict=None, if_encryption:bool = True, path:str=".\\"):
     """加载"""
     if if_encryption and not SECRET_KEY:
         raise ValueError("解密需要密钥")
@@ -102,7 +102,7 @@ def load_json(file_name:str, SECRET_KEY, if_backup:bool=True, default:dict=None,
                 res_dict = json.load(content)
         return res_dict
     except Exception as e:
-        if if_backup:
+        if if_backup: # 读取失败且有备份，尝试读取备份
             print("读取失败：", e, "尝试读取备份")
             try:
                 if if_encryption:
@@ -121,14 +121,18 @@ def load_json(file_name:str, SECRET_KEY, if_backup:bool=True, default:dict=None,
         else:
             raise e
 
-def write_json(save_file_name:str, save_file:dict, SECRET_KEY, if_backup:bool=True, if_encryption:bool=True, save_path:str = ".\\"):
+def write_json(save_file_name:str, save_file:dict, SECRET_KEY=None, if_backup:bool=True, if_encryption:bool=True, save_path:str = ".\\"):
     if if_encryption and not SECRET_KEY:
         raise ValueError("加密需要密钥")
     if not os.path.exists(save_path):
         os.mkdir(save_path)
+
+    if not save_file_name.endswith(".json"):
+        save_file_name += ".json"
+
     if if_backup:
         backup_path = os.getenv('LOCALAPPDATA')+"\\Healthy Surf"
-        backup_file_name = save_file_name[:len(save_file_name)-5]+"_backup.json"
+        backup_file_name = save_file_name[:-5]+"_backup.json"
         if not os.path.exists(backup_path):
             os.mkdir(backup_path)
 
@@ -138,7 +142,7 @@ def write_json(save_file_name:str, save_file:dict, SECRET_KEY, if_backup:bool=Tr
         else:
             temp_file = save_path+"\\"+save_file_name+".tmp"
             with open(temp_file, 'w') as file:
-                json.dump(config, file, indent=4)
+                json.dump(save_file, file, indent=4)
             os.replace(temp_file, save_path+"\\"+save_file_name)
     except Exception as e:
         raise e
@@ -150,7 +154,7 @@ def write_json(save_file_name:str, save_file:dict, SECRET_KEY, if_backup:bool=Tr
             else:
                 temp_file = backup_path+"\\"+backup_file_name+".tmp"
                 with open(temp_file, 'w') as file:
-                    json.dump(config, file, indent=4)
+                    json.dump(save_file, file, indent=4)
                 os.replace(temp_file, backup_path+"\\"+backup_file_name)
         except Exception as e:
             raise e

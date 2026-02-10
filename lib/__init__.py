@@ -1,1 +1,1 @@
-__all__ = ['json_encrypt', 'moretk', 'screenshot_viewer', 'screenshoter', 'history_manager']
+__all__ = ['json_encrypt', 'moretk', 'screenshot_viewer', 'screenshoter', 'history_manager', 'config_manager']

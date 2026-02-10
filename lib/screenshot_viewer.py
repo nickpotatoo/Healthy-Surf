@@ -5,7 +5,7 @@ from typing import Callable
 from PIL import Image, ImageTk 
 
 class OpenImage(tk.Toplevel):
-    def __init__(self, master=None, path: str = None, init_image_name:str = None,shift_image_call: Callable = None, delete_image_call: Callable = None):
+    def __init__(self, master=None, path: str = None, init_image_name:str = None, shift_image_call: Callable = None, delete_image_call: Callable = None):
         super().__init__(master)
         self._apply_high_quality = True
         self._quality_timer = None
@@ -254,19 +254,16 @@ class OpenImage(tk.Toplevel):
 
 class ScreenshotViewer(tk.Toplevel):
     """浏览截图界面"""
-    def __init__(self, master=None, path=None, config:dict=None, on_config_change_func:Callable=None, *args, **kwargs):
+    def __init__(self, master, path, if_ask_delete_screenshot:bool = True, when_config_change_call:Callable=None, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
-
-        if not path or not master or not on_config_change_func or config is None:
-            raise ValueError("缺少参数")
 
         self._picture_name_list = []
         self._picture_list = []
         self._picture_labels = []
         self._chosen_picture = None
         self._chosen_picture_list = []
-        self.config = config
-        self.on_config_change_func = on_config_change_func
+        self.if_ask_delete_screenshot = if_ask_delete_screenshot
+        self._when_config_change_call = when_config_change_call
 
         self._viewer_list = []
 
@@ -318,18 +315,18 @@ class ScreenshotViewer(tk.Toplevel):
 
         self._none_picture_chosen_notice = moretk.NoticeWindow(self, _title="错误", text="未选择图片！", btext="确认", font_l=("微软雅黑", 14), font_b=("微软雅黑", 10), command=lambda:self._none_picture_chosen_notice.withdraw())
 
-        if "if_ask_delete_screenshot" not in self.config:
-            self.config['if_ask_delete_screenshot'] = True
-
-        if self.config['if_ask_delete_screenshot']:
+        if self.if_ask_delete_screenshot:
             self.confirm_window = moretk.CfmWindow(self, _title="删除确认", text="确认删除所选图片？", font_l=("微软雅黑", 13), font_b=("微软雅黑", 10), on_confirm = self._on_cfmwindow_confirm, confirm_button_text="确认", on_cancel= self._on_cfmwindow_cancel, cancel_button_text="取消", enable_check_button=True, check_button_text="不再提示")
 
         self._load_image()
         self._build_image_frame()
+
     def set_config(self):
         """设置配置"""
-        self.config['if_ask_delete_screenshot'] = not self.confirm_window.get_checkbutton_value()
-        self.on_config_change_func()
+        self.if_ask_delete_screenshot = not self.confirm_window.get_checkbutton_value()
+        
+        if self._when_config_change_call:
+            self._when_config_change_call(self.if_ask_delete_screenshot)
     
     def _on_mousewheel(self, event): #鼠标滚轮滚动事件
         self._canvas.yview_scroll(-int(event.delta/120), "units")
@@ -361,7 +358,7 @@ class ScreenshotViewer(tk.Toplevel):
         if (not self._batch_delete_mode and not self._chosen_picture) or (self._batch_delete_mode and not self._chosen_picture_list):
             self._none_picture_chosen_notice.show()
         else:
-            if self.config['if_ask_delete_screenshot']:
+            if self.if_ask_delete_screenshot:
                 self.confirm_window.show()
             else:
                 self._delete_chosen_picture()
